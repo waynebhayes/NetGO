@@ -141,16 +141,6 @@ GENE2GO=$1; shift
 for i
 do
     hawk '
-    # res1 is your variable, where the output set goes; it will be nuked and replaced with the set intersection of T1 and T2.
-    function SetIntersect(res1,T1,T2,
-	g){delete res1;if(length(T1)<length(T2)){for(g in T1)if(g in T2)res1[g]=1}
-							   else{for(g in T2)if(g in T1)res1[g]=1}}
-    # same as above but for set union, and res2 is the result.
-    function SetUnion(res2,T1,T2,
-	g){delete res2;for(g in T1)res2[g]=1;for(g in T2)res2[g]=1}
-    # cumulative add set T to res3
-    function SetCumulativeUnion(res3,T, g){for(g in T)res3[g]=1}
-
     # Return the "knowledge" (ie., specificity) of a single GO term g.
     function K_g(g){if(g in GOp) return 1/length(GOp[g]); else return 0}
 

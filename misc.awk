@@ -37,6 +37,16 @@ function fact(k) {if(k<=0)return 1; else return k*fact(k-1);}
 function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 
+# res1 is your variable, where the output set goes; it will be nuked and replaced with the set intersection of T1 and T2.
+function SetIntersect(res1,T1,T2,
+    g){delete res1;if(length(T1)<length(T2)){for(g in T1)if(g in T2)res1[g]=1}
+						       else{for(g in T2)if(g in T1)res1[g]=1}}
+# same as above but for set union, and res2 is the result.
+function SetUnion(res2,T1,T2,
+    g){delete res2;for(g in T1)res2[g]=1;for(g in T2)res2[g]=1}
+# cumulative add set T to res3
+function SetCumulativeUnion(res3,T, g){for(g in T)res3[g]=1}
+
 # And now counting the info in an edge list. One way to view the info is simply the number of edges.
 # Another is to view each node's adjacency list as having log(n) bits for each of its neighbors.
 # This then says that the amount of info is as follows: the end of each edge is listed twice (ie is in two neighbor lists),
