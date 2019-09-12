@@ -7,7 +7,7 @@
 exeDIR=`dirname "$0"`
 PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
 
-USAGE="USAGE: $0 [-L] gene2goFile alignFile[s]
+USAGE="USAGE: $0 [-verbose] [-L] gene2goFile alignFile[s]
 
     -L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which
     insists that a GO term must annotate every protein in a cluster for it to count.
@@ -128,8 +128,10 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # line of the parameter declarations.
 
 DRACONIAN=1
+VERBOSE=0
 case "$1" in
 -L*) DRACONIAN=0;shift;;
+-verbose) VERBOSE=1;shift;;
 -*) die "unknown option '$1'";;
 esac
 [ $# -ge 2 ] || die "expecting at least 2 arguments: gene2goFile, and then a list of clusterAlignFiles"
@@ -163,66 +165,78 @@ do
     function K_AC(C,
 	sum,numClusterFields,cl,i,u,g,T,M,K_C){
 	sum=0;
-	for(cl in C){
+	for(cl=1;cl<=length(C);cl++){
 	    K_C=0;
-	    #printf "Cluster %d, length %d;",cl,length(C[cl])
+	    if(VERBOSE) printf "Cluster %d numProteins %d\n",cl,length(C[cl])
 	    numClusterFields=length(C[cl]);
 	    delete M; M[0]=1;delete M[0]; # initialize M to empty list; M=set of protein members;
 	    delete T; T[0]=1;delete T[0]; # initialize T to empty list; T=set of GO terms across the cluster;
 	    if(numClusterFields>1){ # have to match more than one protein to be interesting (handle duplicates below)
-		# initialize T to the GO terms of first protein in the cluster:
-		# This initialization is necessary in order to incrementelly create the set intersection of GO terms below.
-		u=C[cl][1]; if(u!="_"&&u!="NA"){ # _ and NA usually replesent dummy place-holders in alignment files
-		    ++M[u] # multi-set: keep track if protein u occurs more than once.
-		    for(g in pGO[u])++T[g];
-		}
-		# Now go through the rest of the cluster, removing elements from T that do not occur in subsequent columns (DRACONIAN)
+		# Now go through the cluster, removing elements from T that do not occur in subsequent columns (DRACONIAN)
 		# and incremently updating the count T[g] if the GO term annotates more than one protein.
-		for(i=2;i<=numClusterFields;i++){u=C[cl][i];if(u=="_"||u=="NA")continue;
-		    ++M[u];
-		    if(DRACONIAN) {
-			for(g in T)if(!(g in pGO[u]))delete T[g] # cumulatively create the set intersection of common GO terms
+		for(i=0;i<numClusterFields;i++){
+		    u=C[cl][i]
+		    ASSERT(u!="-"&&u!="_"&&u!="NA","INTERNAL ERROR: invalid protein got into K_AC");
+		    if(i==0) { # initialize T to the GO terms of first protein in the cluster:
+			u=C[cl][0];
+			++M[u] # multi-set: keep track if protein u occurs more than once.
+			for(g in pGO[u])++T[g];
 		    } else {
-			for(g in T)++T[g];
+			++M[u];
+			if(DRACONIAN) {
+			    for(g in T)if(!(g in pGO[u]))delete T[g] # cumulative set intersection of common GO terms
+			} else {
+			    for(g in T)++T[g]; # cumulative union of common GO terms
+			}
+		    }
+		    if(VERBOSE){
+			printf "\t%s (%d GOs { ", u,length(T)
+			for(g in T) printf "%s(%d) ",g,GOfreq[g]
+			printf "} K(%s)=%g)\n",u,K_gset(T)
 		    }
 		}
-		#printf " col %d=%s, |T|=%d", i, u,length(T)
 	    }
 	    if(length(T)>0 && # if this cluster has any annotations...
 		(length(M)>1 || # and it has more than one protein...
 		    (length(M)==1 && M[u]>1))) # or the same protein multiple times...
 	    {
 		if(DRACONIAN) K_C += K_gset(T)
-		else {
-		    #for(i in M)numClusterFields-=(M[i]-1)
-		    for(g in T)if(T[g]>1) # g must annotate more than 1 protein to get any "points"
+		else
+		    for(g in T)if(T[g]>1) # g must annotate more than 1 protein to get counted
 			K_C += T[g]*K_g(g)/numClusterFields
-		}
 	    }
-	    #printf " K=%g\n",K_C
+	    if(VERBOSE){
+		printf "\t ClusterCommonGOs {"
+		for(g in T)printf " %s",g
+		printf " } K_C=%g\n",K_C
+	    }
 	    sum+=K_C
 	}
 	return sum
     }
 
     # Knowledge in a alignment of a bunch of clusters
-    function sim_A2(A){return K_A2(A)/length(GOp)}
+    function sim_A2(A){return K_A2(A)/length(GOfreq)}
 
     #Old 2-column alignment files, obsolete but simple to test
     #ARGIND==1{C[$1]=$2; C_[$2]=$1}
-    #ARGIND==2&&($2 in C || $2 in C_){pGO[$2][$3]=1;++GOp[$3][$2]}
+    #ARGIND==2{++GOfreq[$3];if($2 in C || $2 in C_){++pGO[$2][$3];++GOp[$3][$2]}}
 
-    BEGIN{DRACONIAN='$DRACONIAN'}
+    BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE'}
     #Clusters version
-    ARGIND==1{for(i=1;i<=NF;i++){CA[FNR][i]=$i;++pC[$i][FNR]}} # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
-    ARGIND==2&&($2 in pC){pGO[$2][$3]=1;++GOp[$3][$2]}
+    ARGIND==1{n=0;for(i=1;i<=NF;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}} # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
+    ARGIND==2{++GOfreq[$3];if($2 in pC){++pGO[$2][$3];++GOp[$3][$2]}}
     END{
-	if(length(pGO) < 0.001 * length(pC)) {
-	    print "Warning: Fewer than 0.1% of the proteins in your alignment have GO annotations. This typically happens\n" \
-		"when your alignment files use a different gene/protein naming convention than the gene2go file." >"/dev/fd/2"
+	if(length(pGO) < 0.01 * length(pC)) {
+	    print "Warning: Fewer than 1% of the proteins in your alignment have GO annotations. This typically happens\n" \
+		"when your alignment files use a different gene/protein naming convention than the gene2go file.\n" \
+		"(eg., your alignment uses Uniprot, Ensembl, or Official Names but gene2go uses BioGRID IDs, etc.)" >"/dev/fd/2"
 	}
-	for(p in pC)if(!(p in pGO)){pGO[p][0]=1;delete pGO[p][0]} #proteins with no GO terms need pGO[p] explicit empty list.
+	for(p in pC) {
+	    if(!(p in pGO)){pGO[p][0]=1;delete pGO[p][0]} #proteins with no GO terms need pGO[p] explicit empty list.
+	    for(g in pGO[p]) sumGOp+=length(pC[p])*K_g(g) # total number of (equivalent) GO terms used in this alignment
+	}
 	know=K_AC(CA);
-	printf "%s: Asize %d numP %d numGO %d K %g score %g\n", ARGV[1], length(CA), length(pGO), length(GOp), know, know/length(GOp)
+	printf "%s: numClus %d numP %d numGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
     }' "$i" $GENE2GO
 done
