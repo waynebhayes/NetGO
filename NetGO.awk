@@ -4,6 +4,9 @@
 # Yes, we call this NetGO.awk even though technically it's a Bourne Shell script. Most of the "meat" of the implementation
 # is in the awk at the bottom of this Bourne shell script.
 
+exeDIR=`dirname "$0"`
+PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
+
 USAGE="USAGE: $0 [-L] gene2goFile alignFile[s]
 
     -L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which
