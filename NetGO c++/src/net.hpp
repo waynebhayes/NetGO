@@ -1,3 +1,4 @@
+
 class NetGO{
 	public:
 		NetGO();
