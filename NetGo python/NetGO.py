@@ -76,8 +76,8 @@ class NetGO:
         '''
         out = 0
         for cl in C:
-	        if self.VERBOSE:		
-                print("cluster ", cl, " num of proteins ", len(C[cl])) 
+            if self.VERBOSE:
+                print("cluster ", cl, " num of proteins ", len(C[cl]))
             #K_C is the K(C) value for each cluster cl in C
             K_C = 0
             #M is a dict of proteins of the following format: {protein:number of times occurring in cl...}
@@ -99,7 +99,7 @@ class NetGO:
                 #Now, we iterate over all proteins in cluster cl (skipping the first one, which we already processed). Add them to M.
                 for i in range(0, numClusterFields):
                     u=C[cl][i]
-	                assert(u!="-" and u!="_" and u!="NA"),"INTERNAL ERROR: invalid protein got into K_AC"		
+                    assert(u!="-" and u!="_" and u!="NA"),"INTERNAL ERROR: invalid protein got into K_AC"
                     #get first protein from cluster, add its GOterms to T 
                     if i==0:
                         u=C[cl][0]

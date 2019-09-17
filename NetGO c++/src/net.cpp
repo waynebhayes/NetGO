@@ -272,50 +272,65 @@ std::map<std::string, std::map<int, int>> pC;
 std::map<std::string, std::map<std::string, int>> pGO;
 std::map<std::string, std::map<std::string, int>> GOp;
 
-//int main(int argc, char** argv) {
-int main() {
-	bool inputFound = false;
+int main(int argc, char** argv) {
+//int main() {
 	NetGO s;
 	std::string nextword;
 	std::string USAGE="USAGE: $0 [-verbose] [-L] gene2goFile alignFile[s]\n-L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which\ninsists that a GO term must annotate every protein in a cluster for it to count.\nThe Lenient option gives a GO term a weight per-cluster that is scaled by the\nnumber of proteins it annotates (so long as it's more than 1).\nalignFile: each line consists of a cluster of any number of proteins; proteins can\nappear in more than one cluster. Note it must use the same protein naming convention\nas your gene2go file.\ngene2goFile: a standard-format gene2go file downloaded from the GO consortium's\nwebsite. For now we only use columns 2 (protein name) and 3 (GO term). We ignore\nthe species, which is a simplification since about 20% of proteins appear in two\nspecies, but only 2% appear in more than 2.\n";
 	std::string clusterFile;
 	std::string g2gFile;
-	/*
-	while (!inputFound){
-		std::string USAGE="USAGE: $0 [-verbose] [-L] gene2goFile alignFile[s]\n-L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which\ninsists that a GO term must annotate every protein in a cluster for it to count.\nThe Lenient option gives a GO term a weight per-cluster that is scaled by the\nnumber of proteins it annotates (so long as it's more than 1).\nalignFile: each line consists of a cluster of any number of proteins; proteins can\nappear in more than one cluster. Note it must use the same protein naming convention\nas your gene2go file.\ngene2goFile: a standard-format gene2go file downloaded from the GO consortium's\nwebsite. For now we only use columns 2 (protein name) and 3 (GO term). We ignore\nthe species, which is a simplification since about 20% of proteins appear in two\nspecies, but only 2% appear in more than 2.\n";
-		if(argc<3){
-			std::cout<<USAGE
-		}else{
-			g2gFile = argv[3];
-			clusterFile = argv[2];
+	std::vector<std::string> clusterfilenames;
+	int g2gindex = 1;
+	int clusterindex = 2;
+	if((std::string) argv[1]=="-L"){
+		s.DRACONIAN=false;
+		g2gindex=2;
+		clusterindex=3;
+		if((std::string) argv[2]=="-verbose"){
+			s.VERBOSE=true;
+			g2gindex=3;
+			clusterindex=4;
 		}
 	}
-	*/
-	s.DRACONIAN=false;
-	s.VERBOSE=true;
-	s.newCluster("/home/me/myWS/alex/netGO/alignFiles/1-to-1-homologs-RNorvegicus-AThaliana.tsv");
-	s.newg2g("/home/me/myWS/alex/netGO/gene2go");
-	float sumGOp;
-	int count;
-	for(auto ppair : s.pC){
-		std::string p = ppair.first;
-		if(s.pGO.find(p)==s.pGO.end()){
-			std::map<std::string, int> newvector;
-			s.pGO[p] = newvector;
-			count++;
-		}
-		for(auto gpair : s.pGO[p]){
-			std::string g = gpair.first;
-			sumGOp=sumGOp+float(s.pC[p].size())*float(s.K_g(g));
-		}
+	if((std::string) argv[1]=="-verbose"){
+			s.VERBOSE=true;
+			g2gindex=2;
+			clusterindex=3;
 	}
-	float know = s.K_AC(s.CA);
-	std::cout << "numClus " << s.CA.size();
-	std::cout << " numP " << s.pGO.size();
-	std::cout << " numGO " << sumGOp;
-	std::cout << " GOcorpus " << s.GOfreq.size();
-	std::cout << " K(A) " << know;
-	std::cout << " score " << float(know)/float(sumGOp) << "\n";
-	//std::cout<<s.CA[3][0]<<"\n";
-	//std::cout<<s.pC["361107"][3];
+	//add support for rregex name
+	std::string g2gfilename = argv[g2gindex];
+	for(int i = clusterindex; i<argc; i++){
+		clusterfilenames.push_back(argv[i]);
+	}
+	std::cout << g2gfilename << "\n";
+	std::cout << clusterfilenames[0] << "\n";
+	for(std::string clusterfilename : clusterfilenames){
+		//s.newCluster("/home/me/myWS/alex/netGO/alignFiles/1-to-1-homologs-RNorvegicus-AThaliana.tsv");
+		//s.newg2g("/home/me/myWS/alex/netGO/gene2go");
+		s.newCluster(clusterfilename);
+		s.newg2g(g2gfilename);
+		float sumGOp;
+		int count;
+		for(auto ppair : s.pC){
+			std::string p = ppair.first;
+			if(s.pGO.find(p)==s.pGO.end()){
+				std::map<std::string, int> newvector;
+				s.pGO[p] = newvector;
+				count++;
+			}
+			for(auto gpair : s.pGO[p]){
+				std::string g = gpair.first;
+				sumGOp=sumGOp+float(s.pC[p].size())*float(s.K_g(g));
+			}
+		}
+		float know = s.K_AC(s.CA);
+		std::cout << "numClus " << s.CA.size();
+		std::cout << " numP " << s.pGO.size();
+		std::cout << " numGO " << sumGOp;
+		std::cout << " GOcorpus " << s.GOfreq.size();
+		std::cout << " K(A) " << know;
+		std::cout << " score " << float(know)/float(sumGOp) << "\n";
+		//std::cout<<s.CA[3][0]<<"\n";
+		//std::cout<<s.pC["361107"][3];
+	}
 }
