@@ -1,16 +1,23 @@
 #!/bin/sh
+USAGE="USAGE: $0 [speciesRegexp] [InputFile] (either can be empty for stdin)"
+die() { echo "$USAGE">&2; echo "$@" >&2; exit 1
+}
 
-ID_FILE=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab/IDENTIFIERS-3.5.176.tsv
-#ID_FILE=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab/IDENTIFIERS-short.tsv
-echo "You will need 40GB of RAM and 5-10 minutes as we load this huge file:"
-(cd `dirname $ID_FILE`; ls -l `basename $ID_FILE`)
-LINES=`wc -l < $ID_FILE`
+DATABASE_DIR=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
+[ -d $DATABASE_DIR ] || die "set DATABASE_DIR in $0"
 
-INFILE=
-if [ $# -eq 0 ]; then INFILE="-"; fi # force awk to read stdin if we are given no arguments
+InputFile=""
+SPECIES_FILE=`ls $DATABASE_DIR/* | grep -i "$1"`
+[ `echo "$SPECIES_FILE" | wc -l` -eq 1 ] || die "$SPECIES_FILE:
+expecting only one species file, but found the above files. Make your regexp more strict."
+[ -f "$SPECIES_FILE" ] || die "cannot find species file '$SPECIES_FILE'"
+shift
+if [ $# -eq 0 ]; then
+    InputFile="-"
+fi # force awk to read stdin if we are given no arguments
 
 TAB="	"
-# The file looks like this:
+# The IDENTIFIER file looks like this (species column missing if we use species-specific files)
 #id	value	type	species
 #1	1	BIOGRID	Arabidopsis thaliana
 #1	ArthMr001	SYSTEMATIC NAME	Arabidopsis thaliana
@@ -22,29 +29,26 @@ TAB="	"
 #2	ArthMp007	SYSTEMATIC NAME	Arabidopsis thaliana
 #2	ArthMp007	ORDERED LOCUS	Arabidopsis thaliana
 awk -F"$TAB" '
-    BEGINFILE{if(FILENAME=="-")print "\nReady to take TAB-SEPARATED 4-column queries (qtype,qname, rtype,rspecies)";else printf "%s:\n0%", FILENAME >"/dev/fd/2"}
+    BEGIN{if(FILENAME=="-")print "\nReady to take TAB-SEPARATED 4-column queries (qtype,qname, rtype,rspecies)"}
     ARGIND==1&&FNR>1{ # skip header line
 	$0=tolower($0) # only deal in lower-case
-	bg=$1; name=$2; type=$3; species=$4
+	bg=$1; name=$2; type=$3
 	TYPE[name][bg]=type
-	NAMES[bg][type][species]=name
-	percent=int(100*FNR/'$LINES');
-	if(percent!=oldPercent){printf "\r%d%%",percent >"/dev/fd/2";oldPercent=percent}
+	NAMES[bg][type]=name
     }
     ARGIND>1{
-	if(NF!=4){printf "\nexpecting 4 TAB-SEPARATED fields: queryType, queryName, outType, species. All but name can be a regexp, \".*\" for anything\n" > "/dev/fd/2";next}
+	if(NF!=3){printf "\nexpecting 3 TAB-SEPARATED fields: queryType, queryName, outType. All but name can be a regexp, \".*\" for anything\n" > "/dev/fd/2";next}
 	$0=tolower($0)
 	qType=$1
 	qName=$2
 	if(!(qName in TYPE)){printf "sorry, no such symbol found \"%s\"\n",qName > "/dev/fd/2"; next}
 	rType=$3
-	species=$4
 	for(b in TYPE[qName])if(match(TYPE[qName][b],qType)){ # for all BioGRID IDs that have a match to this name,type pair
 	    #printf "Symbol \"%s\" of type \"%s\" is BioGRID id \"%s\"\n",qName,TYPE[qName][b],b
-	    for(t in NAMES[b])if(match(t,rType))for(s in NAMES[b][t]) if(match(s,species))
+	    for(t in NAMES[b])if(match(t,rType))
 	    {
 		printf "%s\t%s\t",TYPE[qName][b],qName
-		printf "%s\t%s\t%s\n", s,t,NAMES[b][t][s]
+		printf "%s\t%s\t%s\n", s,t,NAMES[b][t]
 	    }
 	}
-    }' $ID_FILE $INFILE "$@"
+    }' $SPECIES_FILE $InputFile "$@"
