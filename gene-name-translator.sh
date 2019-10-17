@@ -36,21 +36,19 @@ TAB="	"
 awk -F"$TAB" '
     BEGIN{qType="'"$qType"'";rType="'"$rType"'"; IGNORECASE=1; if('$TTY')print "Ready to take name queries"}
     ARGIND==1&&FNR>1{ # skip header line
-	$0=$0 # only deal in lower-case
 	bg=$1; name=$2; type=$3
-	TYPE[name][bg]=type
-	NAMES[bg][type]=name
+	TYPE[toupper(name)][bg]=type # force UPPERCASE for array indices since IGNORECASE has no effect on them.
+	NAMES[bg][toupper(type)]=name
     }
     ARGIND>1{
 	if(NF!=1){printf "\nexpecting 1 field: queryName.\n" > "/dev/fd/2";next}
-	$0=$0
-	qName=$0
-	if(!(qName in TYPE)){printf "sorry, no such symbol found \"%s\"\n",qName > "/dev/fd/2"; next}
-	for(b in TYPE[qName])if(match(TYPE[qName][b],qType)){ # for all BioGRID IDs that have a match to this name,type pair
+	qName=$0; QNAME=toupper(qName);
+	if(!(QNAME in TYPE)){printf "No symbol \"%s\" of type \"'"$qType"'\" in '"$SPECIES_FILE"'\n",qName > "/dev/fd/2"; next}
+	for(b in TYPE[QNAME])if(match(TYPE[QNAME][b],qType)){ # for all BioGRID IDs that have a match to this name,type pair
 	    #printf "Symbol \"%s\" of type \"%s\" is BioGRID id \"%s\"\n",qName,TYPE[qName][b],b
 	    for(t in NAMES[b])if(match(t,rType))
 	    {
-		printf "%s\t%s\t",TYPE[qName][b],qName
+		printf "%s\t%s\t",TYPE[QNAME][b],qName
 		printf "%s\t%s\n", t,NAMES[b][t]
 	    }
 	}
