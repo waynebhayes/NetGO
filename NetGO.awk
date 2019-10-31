@@ -7,7 +7,7 @@
 exeDIR=`dirname "$0"`
 PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
 
-USAGE="USAGE: $0 [-verbose] [-L] gene2goFile alignFile[s]
+USAGE="USAGE: $0 [-verbose] [-L] OBOfile.obo gene2goFile alignFile[s]
 
     -L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which
     insists that a GO term must annotate every protein in a cluster for it to count.
@@ -53,21 +53,21 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # it will only record annotation information for the proteins you need.
 
 # The differing sets of proteins (your alignment file vs. those in the gene2go file) also brings up the question of "how many
-# proteins", and "how many GO terms", are there, when we need to know their count? The GO term frequency (kappa_g in the paper
+# proteins", and "how many GO terms", are there, when we need to know their count? The GO term frequency (kappa_g in the paper)
 # is based on how many times we see the GO term g *among the proteins in your alignment file*---and recall that we also ignore
 # species ID, so this count can fluctuate a bit depening on your input data.
 
 # CLUSTER SIZE
 # How many proteins are in your cluster? This depends on how we count. If the exact same protein name appears twice in the same
 # cluster, does it count for 1, or 2? That is, do we remove duplicates? This may depend on what you want to do. Certainly
-# seeing the same protein $p$ a second does not add to the set of GO annotations in this cluster after we've seen $p$ before,
-# it should it change the *count* of these GO terms? 
+# seeing the same protein $p$ a second time does not add to the set of GO annotations in this cluster after we've seen $p$
+# before, so should it change the *count* of these GO terms? 
 # Things to consider in this question: though you may be tempted to remove duplicate proteins, this means you don't get any
 # points for correctly putting both copies of the same protein into the same cluster *if they came from different species*; this
 # is a significant drawback because correctly aligning a protein to itself between species is a pretty beneficial thing to do,
 # and getting no points for it sucks. Furthermore, we claim in the paper that aligning a network to itself should, of course,
-# result in a NetGO score (very close to) 1; if you remove duplicates then aligning a network to itself results in every cluster
-# having only one protein, and a NetGO score of exactly zero.
+# result in a NetGO score of (very close to) 1; if you remove duplicates then aligning a network to itself results in every
+# cluster having only one protein, and a NetGO score of exactly zero.
 # For these reasons, we have decided to allow duplicates. The number of times a protein $u$ appears in a cluster is kept in
 # the variable M[u] (M=membership set).
 
@@ -102,30 +102,31 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # length(pC) is thus the number of unique protein names that occured in your alignment file;
 # length(pC[p]) is the number of clusters # it appears in.
 #
-# pGO: the protein-to-GO set map
-# Contains:  pGO[p][g]=1 if protein p has ever been annotated by GO term g.
-# REMEMBER SPECIES ID IS IGNORED in the gene2go file. This means that there's a possibility that p has been annotated with g in
+# pGO: the protein-to-GO multiset map
+# pGO[p][g]=count is the number of times p is annotated by g (including OBO-inferred annotations) across all species,
+#    but only for proteins p in the alignment
+# FOR NOW WE IGNORE SPECIES ID in the gene2go file. This means that there's a possibility that p has been annotated with g in
 # another species, but not the one you're aligning. This will be (a) rare, and (b) probably not an entirely invalid assumption.
-# Note: conceivably we could make this a count, as we do for GOp below. For now we don't.
 #
 # GOp: GO-to-protein multiset (inverse relationship of the above, but a multiset instead of just a set)
-# Contains: GOp[g][p]=count, is the count of the number of times GO term g has annotated protein p. This usually means that
-# the GO term occurs with protein p in the gene2go file many times, each with a different evidence code. This is useful information
-# to have (eg., more evidence codes makes the annotation more certain to be correct), but for now we ignore the count and treat it
-# simply as a set (true-or-false: does g annotate p?)
+# GOp[g][p]=count is the number of times GO term g (including OBO-inferred annotations) annotates protein p across all species,
+#    but only for proteins p in the input alignment.
+# This usually means that the GO term occurs with protein p in the gene2go file many times, each with a different evidence code.
+# This is useful information to have (eg., more evidence codes makes the annotation more certain to be correct).
 #
 # EMPTY SETS
 # In several places, we assume that the length of an array defines how many relationships it has. The problem is that,
-# since arrays are actually associative, if the relationship does not exist at all, then the element will be not be zero, but
-# will instead not exist. This breaks some parts of the code. To fix it, we sometimes create an empty array, to specify
+# since arrays are actually associative, if the relationship does not exist at all, then the element will be not be zero,
+# but will instead not exist. This breaks some parts of the code. To fix it, we sometimes create an empty array, to specify
 # "this relationship does not exist". Unfortunately there is no way in AWK to create an empty array. The only way to do it
-# is to bring the array into existing by accessing a (as-yet non-existant) member; both both creates the array, and the one
-# new member. Then you can delete that one member, leaving an empty array. The syntax to do this (seen below in several places) is:
+# is to bring the array into existence by accessing an (as-yet non-existant) member; this creates the array, and the one
+# new member.  Then you just delete that one member, leaving an empty array.
+# The syntax to do this (seen below in several places) is:
 # A[0]=1; delete A[0]; # create dummy element A[0], then delete it, leaving A as an array with zero elements.
 
-# awk allows no local variables other than parameters, but it also allows you to declare more
-# parameters than are passed. Thus the convention is to declare local variables as extra parameters, as the second
-# line of the parameter declarations.
+# awk allows no local variables other than parameters, but it also allows you to declare more parameters than are passed.
+# Thus the convention is to declare local variables as extra parameters (with extra whitespace or a newline after the
+# true parameter list).
 
 DRACONIAN=1
 VERBOSE=0
@@ -134,11 +135,13 @@ case "$1" in
 -verbose) VERBOSE=1;shift;;
 -*) die "unknown option '$1'";;
 esac
-[ $# -ge 2 ] || die "expecting at least 2 arguments: gene2goFile, and then a list of clusterAlignFiles"
+[ $# -ge 3 ] || die "expecting at least 3 arguments: OBOfile.obo, gene2goFile, and at least one clusterAlignFile"
+
+OBO=$1; shift
+(fgrep -q 'id: GO:' $OBO && fgrep -q 'is_a: GO:' $OBO) || die "first argument must be a go.obo file"
 
 GENE2GO=$1; shift
-
-[ `cat $GENE2GO | head -10 | grep -c '	GO:'` -ge 9 ] || die "first argument must be the gene2go file"
+[ `cat $GENE2GO | head -10 | grep -c '	GO:'` -ge 9 ] || die "2nd argument must be the gene2go file"
 
 for i
 do
@@ -147,12 +150,10 @@ do
     function K_g(g){if(g in GOp) return 1/length(GOp[g]); else return 0}
 
     # Return the sum of specifities of a set of GO terms.
-    function K_gset(T,
-	g,sum){sum=0;for(g in T)sum+=K_g(g); return sum}
+    function K_gset(T,	g,sum){sum=0;for(g in T)sum+=K_g(g); return sum}
 
     # Return the "knowledge" level of a protein p, which is just K_gset(T), where T is its sets of GO annotations.
-    function K_p(p,
-	sum){sum=0;if(p in pGO)return K_gset(pGO[p]); else return 0}
+    function K_p(p,	sum){sum=0;if(p in pGO)return K_gset(pGO[p]); else return 0}
 
     # Knowledge in a simple pairwise alignment in which A[u]=v
     # This function was mostly just used for testing simple cases early on; it is superceded by K_AC below.
@@ -220,12 +221,72 @@ do
 
     #Old 2-column alignment files, obsolete but simple to test
     #ARGIND==1{C[$1]=$2; C_[$2]=$1}
-    #ARGIND==2{++GOfreq[$3];if($2 in C || $2 in C_){++pGO[$2][$3];++GOp[$3][$2]}}
+    #ARGIND==2{if($2 in C || $2 in C_){++GOfreq[$3];++pGO[$2][$3];++GOp[$3][$2]}}
 
     BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE'}
+    #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
+    #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
+
     #Clusters version
-    ARGIND==1{n=0;for(i=1;i<=NF;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}} # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
-    ARGIND==2{++GOfreq[$3];if($2 in pC){++pGO[$2][$3];++GOp[$3][$2]}}
+    # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
+    ARGIND==1{n=0;for(i=1;i<=NF;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}}
+
+    # Read the OBO file
+    ARGIND==2{gsub("!.*$","")  # delete all comments
+	if(/^id:/){id=$2;OBO_ID[$2]=1}
+	if(/^is_a:/){OBO_P[id][$2]=1}
+	if(/^name:/){gsub("name: ","");gsub(" ","_");OBOname[id]=$0}
+	if(/^namespace:/){OBO_NS[id]=$2}
+	if(/^alt_id:/||/^consider:/){OBOmap[$2][id]=1}
+	if(/^is_obsolete:/){OBO_Ob[id]=1}
+	if(/^.Typedef/){nextfile} # this marks the end of the actual heirarchy definition
+    }
+    # Recursively find the root starting at GO term g, assigning ancestors along the way (do not include self as ancestor)
+    function OBOtraceRoot(g,g1,		p,i,n){
+	if(g1!=g) OBOancestors[g][g1]=1;
+	if(isarray(OBO_P[g1])) { # This is only false once we reach one of the three roots of the GO hierarchy
+	    for(p in OBO_P[g1]){
+		OBOtraceRoot(g,p)
+	    }
+	}
+    }
+    ENDFILE{ if(ARGIND==2){
+	    # Post-process the OBO file:
+	    for(g in OBO_ID) if(!OBO_Ob[g]) # if not obsolete
+		OBOtraceRoot(g,g)
+    }}
+
+    # Read the gene2go file
+    ARGIND==3 && !/^#/ {
+	# In the following, we only link the protein p to the GO term g if p is in the alignment.
+	# Note that for algorithms that produce tiny alignments on large networks (ie., ignoring many proteins)
+	# this could make frequent, vague GO terms look more specific than they really are.
+	p=$2; if(p in pC) {
+	    g=$3; ++GOfreqOBS[g]; # observed GO frequency in the gene2go file among proteins in the alignment
+	    ++pGO[p][g]; ++GOp[g][p]
+	}
+    }
+    ENDFILE{ if(ARGIND==3) {
+	# loop over the GO terms in the gene2go file that are associated with proteins in the alignment,
+	# increasing their ancestor GOfreqs as well
+	for(g in GOfreqOBS) { # loop over GO terms from gene2go that annotate proteins in our alignment
+	    #ASSERT(g in GOp, "Oops, GO term "g" is not in GOp, which should not happen");
+	    GOfreq[g]+=GOfreqOBS[g] # Use "+=" since it may be non-zero due to being an ancestor of another protein.
+	    if(g in OBOancestors) { # there can be old GO terms in gene2go that are not in a newer OBO file
+		for(g1 in OBOancestors[g]){
+		    GOfreq[g1] += GOfreqOBS[g] # all the ancestor GO terms get a frequency bump from the annotation of g.
+		    # For all the proteins that g annotates, record the fact that the ancestor g1 also annotates them.
+		    for(p in GOp[g]){
+			#ASSERT(p in pC,"Oops, protein "p" is in GOp but not pC")
+			++pGO[p][g1]; ++GOp[g1][p]
+		    }
+		}
+	    }
+	    #else printf "WARNING: %s not found in OBO file\n", $3 > "/dev/fd/2"
+	}
+	delete GOfreqOBS # not needed anymore
+    }}
+
     END{
 	if(length(pGO) < 0.01 * length(pC)) {
 	    print "Warning: Fewer than 1% of the proteins in your alignment have GO annotations. This typically happens\n" \
@@ -237,6 +298,7 @@ do
 	    for(g in pGO[p]) sumGOp+=length(pC[p])*K_g(g) # total number of (equivalent) GO terms used in this alignment
 	}
 	know=K_AC(CA);
-	printf "%s: numClus %d numP %d numGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
-    }' "$i" $GENE2GO
+	printf "%s: numClus %d numP %d sumGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
+    }' "$i" $OBO $GENE2GO
 done
+

@@ -41,8 +41,11 @@ awk 'BEGIN{PRINTPATHS='$PRINT';KOUNT='$KOUNT'}
 	for(g in ID) if(!Ob[g]) { # if not obsolete
 	    OBORootPaths(g,0)
 	    if(KOUNT){
-		for(g in _OBOcounts)printf "%d:%s ",_OBOcounts[g],g
+		for(g1 in _OBOcounts)printf "%d:%s ",_OBOcounts[g1],g1
 		print ""
+	    }
+	    else {
+		for(g1 in _OBOcounts)OBOancestors[g][g1]=1
 	    }
 	}
     }' "$@"
