@@ -1,0 +1,11 @@
+#!/bin/sh
+# The Spearman correlation is just the Pearson correlation of the rank coefficients. It measure monotonicity, not linearity.
+TMP=/tmp/spearman$$
+trap "/bin/rm -rf $TMP; exit" 0 1 2 3 15
+mkdir -p $TMP
+cat "$@" | nl > $TMP/input # numbering the original input lines
+# Sort by the two input columns and put rank as last column, then put them back in original order.
+sort --stable -k 2,2g $TMP/input | awk '{print $0,NR}' | sort --stable -k 1,1n >$TMP/rank1 &
+sort --stable -k 3,3g $TMP/input | awk '{print $0,NR}' | sort --stable -k 1,1n >$TMP/rank2
+wait # wait for 1st one to finish too
+paste $TMP/rank? | awk '{if($2!=$6 || $3!=$7){print "ERROR in lines",$0; exit(1)}else{print $4,$8}}' | pearson

@@ -8,7 +8,7 @@ fi
 PROG="$1"
 shift
 if $TABS; then
-    exec awk -d -F '	' "`cat "$DIR/misc.awk"`$PROG" "$@"
+    exec awk -F '	' "`cat "$DIR/misc.awk"`$PROG" "$@"
 else
     exec awk "`cat "$DIR/misc.awk"`$PROG" "$@"
 fi

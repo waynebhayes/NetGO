@@ -1,6 +1,6 @@
 BEGIN{PI=M_PI=3.14159265358979324}
 function int2binary(i){if(i<=0)return "0";_s="";while(i){_s=(i%2)""_s;i=int(i/2)}return _s}
-function Fatal(msg){printf "FATAL ERROR: %s\n",msg >"/dev/fd/2"; exit(1);}
+function Fatal(msg){printf "FATAL ERROR: %s\n",msg >"/dev/stderr"; exit(1);}
 function NormDotProd(u,v,    _dot,_dot1,_dot2,i){_dot=_dot1=_dot2=0;
     for(i in u){_dot+=u[i]*v[i];_dot1+=u[i]*u[i];_dot2+=v[i]*v[i]};
     return _dot/sqrt(_dot1*_dot2);
@@ -206,29 +206,73 @@ function PoissonPMF(l,k, r,i){if(l>700)return NormalDist(l,sqrt(l),k);r=exp(-l);
 function Poisson1_CDF(l,k, i,sum,psum){psum=-1;sum=0;for(i=k;psum!=sum;i++){psum=sum;sum+=PoissonPMF(l,i)}; return sum}
 function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*exp(-l)}
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
+
+# The Spearman correlation is just the Pearson correlation of the rank. It measures monotonicity, not linearity.
+# Unfortunately it means we need to store every sample, and sort them into rank order when we want the coefficient.
+function SpearmanAddSample(name,X,Y) {
+    delete _SpComputeResult[name];
+    _SpN=(_Spearman_N[name]++) # 1-indexed, not zero.
+    _SpearmanSampleX[name][_SpN]=X;
+    _SpearmanSampleY[name][_SpN]=Y;
+}
+function SpearmanCompute(name, i) {
+    ASSERT(name in _Spearman_N, "SpearmanCompute: no such data "name);
+    if(name in _SpComputeResult) return _SpComputeResult[name];
+    ASSERT(length(_SpearmanSampleX[name])==length(_SpearmanSampleY[name]),
+	"SpearmanCompute: input arrays are different lengths");
+    # Too hard to do this in awk, just run external spearman program
+    _SpCommand = "spearman"
+    for(i=1;i<=_Spearman_N[name];i++) print _SpearmanSampleX[name][i],_SpearmanSampleY[name][i] |& _SpCommand;
+    close(_SpCommand,"to");
+    _SpCommand |& getline _SpComputeResult[name]
+    close(_SpCommand,"from");
+    n=split(_SpComputeResult[name],a);
+    ASSERT(a[1]==_Spearman_N[name],"SpearmanCompute: first field returned by external command "_SpCommand" is not _Spearman_N["name"]="_Spearman_N[name]);
+    _Spearman_rho[name]=a[2];
+    _Spearman_p[name]=a[3];
+    _Spearman_t[name]=a[4];
+    delete a
+    return _SpComputeResult[name];
+}
+function SpearmanPrint(name) { return SpearmanCompute(name) }
+
+function PearsonReset(name) {
+    delete _Pearson_sumX[name]
+    delete _Pearson_sumY[name]
+    delete _Pearson_sumXY[name]
+    delete _Pearson_sumX2[name]
+    delete _Pearson_sumY2[name]
+    delete _Pearson_N[name]
+    delete _Pearson_rho[name]
+    delete _Pearson_t[name]
+    delete _Pearson_p[name]
+}
 function PearsonAddSample(name,X,Y) {
+    _PearsonComputeValid[name]=0;
     _Pearson_sumX[name]+=X
     _Pearson_sumY[name]+=Y
     _Pearson_sumXY[name]+=X*Y
     _Pearson_sumX2[name]+=X*X
     _Pearson_sumY2[name]+=Y*Y
-    _Pearson_NR[name]++;
+    _Pearson_N[name]++;
 }
 function PearsonCompute(name,     numer,D1,D2,denom){
-    if(!_Pearson_NR[name])return;
-    numer=_Pearson_sumXY[name]-_Pearson_sumX[name]*_Pearson_sumY[name]/_Pearson_NR[name]
-    D1=_Pearson_sumX2[name]-_Pearson_sumX[name]*_Pearson_sumX[name]/_Pearson_NR[name]
-    D2=_Pearson_sumY2[name]-_Pearson_sumY[name]*_Pearson_sumY[name]/_Pearson_NR[name]
+    if(!_Pearson_N[name])return;
+    if(_PearsonComputeValid[name]) return;
+    numer=_Pearson_sumXY[name]-_Pearson_sumX[name]*_Pearson_sumY[name]/_Pearson_N[name]
+    D1=_Pearson_sumX2[name]-_Pearson_sumX[name]*_Pearson_sumX[name]/_Pearson_N[name]
+    D2=_Pearson_sumY2[name]-_Pearson_sumY[name]*_Pearson_sumY[name]/_Pearson_N[name]
     denom=sqrt(D1*D2); _Pearson_rho[name]=0; if(denom)_Pearson_rho[name]=numer/denom;
-    _Pearson_t[name]=Pearson2T(_Pearson_NR[name],_Pearson_rho[name]);
+    _Pearson_t[name]=Pearson2T(_Pearson_N[name],_Pearson_rho[name]);
     if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
-    _Pearson_p[name]=StatTDistZtoP(_Pearson_t[name],_Pearson_NR[name]-2)/1.23
+    _Pearson_p[name]=StatTDistZtoP(_Pearson_t[name],_Pearson_N[name]-2)/1.23
+    _PearsonComputeValid[name]=1;
 }
 function PearsonPrint(name){
-    #if(!_Pearson_NR[name])return;
+    #if(!_Pearson_N[name])return;
     PearsonCompute(name);
     # NR = number of samples, rho=Pearson correlation, p=p-value, t = number of standard deviations from random.
-    return sprintf("%d %.3g %.3g %.3g", _Pearson_NR[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
+    return sprintf("%d %.3g %.3g %.3g", _Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
 }
 
 # Functions for computing the AUPR
