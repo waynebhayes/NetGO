@@ -47,7 +47,7 @@ if [ "$VERBOSE" -eq 1 ]; then
     cat "$TMPDIR/VARCOLS" >&2
 fi
 
-awk -F "$FIELD_SEP" "`cat $EXEDIR/misc.awk`${FUNC}"'
+gawk -F "$FIELD_SEP" "`cat $EXEDIR/misc.awk`${FUNC}"'
     BEGINFILE{'"`cat $TMPDIR/VARCOLS`"'}
     # I am not sure why the next line was signaled as an error; comments before header are easy to ignore.
     #/^#/&&!_awkcelStarted[ARGIND]{print "FATAL ERROR: No comments allowed in data file before the header" > "/dev/stderr"; exit(1)}
