@@ -14,43 +14,46 @@ USAGE="USAGE: $0 [-verbose] [-L] OBOfile.obo gene2goFile alignFile[s]
     The Lenient option gives a GO term a weight per-cluster that is scaled by the
     number of proteins it annotates (so long as it's more than 1).
 
-    alignFile: each line consists of a cluster of any number of proteins; proteins can
-    appear in more than one cluster. Note it must use the same protein naming convention
-    as your gene2go file.
+    OBOfile.obo: obo file from the Gene Ontology website; should be same version as gene2go.
 
     gene2goFile: a standard-format gene2go file downloaded from the GO consortium's
     website. For now we only use columns 2 (protein name) and 3 (GO term). We ignore
     the species, which is a simplification since about 20% of proteins appear in two
-    species, but only 2% appear in more than 2.
+    species, but only 2% appear in more than 2. Should be same version as OBO file above.
+
+    alignFile: each line consists of a cluster of any number of proteins; proteins can
+    appear in more than one cluster. Note it must use the same protein naming convention
+    as your gene2go file.
+
 "
 die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 }
 
 # References:
-# Main paper this script is based on is the shorter 2019 paper by Hayes, "NetGO: a data-driven approach..."
+# Main paper this script is based on is the 2019 paper by Hayes, "NetGO: a data-driven approach..."
 # Older paper with more justification: Hayes and Mamano 2017, doi: 10.1093/bioinformatics/btx716 "SANA NetGO: a combinatorial approach..."
 
 # IMPLEMENTATION DECISIONS
-# Though the math for NetGO is pretty straightforward, there are are a large number of implementation decisions that must be made.
+# Though the math for NetGO is straightforward, there are are many implementation decisions.
 # Few of these are carved in stone.
 #
 # First, for now WE IGNORE SPECIES IN THE gene2go FILE.
-# Most proteins (about 80%) occur in only one species, so only 20% occur in more than one species, and only about 2% occur in more
-# than two species. Plus, it is a good bet (though not certain) that the *exact* same protein will perform a highly similar set of
-# functions in whatever species it appears in. So GO terms valid for one species are likely to be valid for the same protein in
-# another species.
-# Furthermore, the species-taxonomic ID (which is the first columns of the gene2go file) is not unique. For example, at last count
-# S.cerevisiae has 321 (!!! yes over 300) different strains, and thus over 300 taxonomic IDs. Even mouse had over a dozen different
+# Most proteins (80%) occur in only one species, so only 20% occur in more than one species, and only about 2% occur in more
+# than two species. It is a good bet (though not certain) that the *exact* same protein will perform a highly similar set of
+# functions in whatever species it appears in. So GO terms valid for one species are likely to be valid for the same protein
+# in another species.
+# Furthermore, the species-taxonomic ID (which is the first columns of the gene2go file) is not unique. For example, at last
+# count S.cerevisiae has 321 (!!!) different strains, and thus over 300 taxonomic IDs. Even mouse had over a dozen different
 # taxonomic IDs. Dealing with this complexity would be a mess.
-# For the above reasons, for now we ignore the first column (taxonomic ID) of the gene2go file, and assume than the pair (gene,GO)
-# is enough to determine GO counts, GO frequencies, and protein annotations.
+# For the above reasons, for now we ignore the first column (taxonomic ID) of the gene2go file, and assume than the pair
+# (gene,GO) is enough to determine GO counts, GO frequencies, and protein annotations.
 
-# Second, protein names are always in flux, and some proteins have vastly more annotations than others. Even if you use the same naming
-# convention in your alignment file as the appears in the gene2go file (which is necessary for this script to work), there will likely
-# be some proteins in your alignment that do not appear in the gene2go file, and some proteins in the gene2go file for your species
-# that are not in your alignment file. Finally, the gene2go file is HUGE, and we don't want to read the whole thing in every time.
-# Thus, this script needs to know YOUR list of proteins (gotten from your alignment/cluster file) before it reads the gene2go file;
-# it will only record annotation information for the proteins you need.
+# Second, protein names are always in flux, and some proteins have vastly more annotations than others. Even if you use the
+# same naming convention in your alignment file as the appears in the gene2go file (which is necessary for this script to work),
+# there will likely be some proteins in your alignment that do not appear in the gene2go file, and some proteins in the gene2go
+# file for your species that are not in your alignment file. Finally, the gene2go file is HUGE, and we don't want to read the
+# whole thing in every time. Thus, this script needs to know YOUR list of proteins (gotten from your alignment/cluster file)
+# before it reads the gene2go file; it will only record annotation information for the proteins you need.
 
 # The differing sets of proteins (your alignment file vs. those in the gene2go file) also brings up the question of "how many
 # proteins", and "how many GO terms", are there, when we need to know their count? The GO term frequency (kappa_g in the paper)
@@ -58,28 +61,28 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # species ID, so this count can fluctuate a bit depening on your input data.
 
 # CLUSTER SIZE
-# How many proteins are in your cluster? This depends on how we count. If the exact same protein name appears twice in the same
-# cluster, does it count for 1, or 2? That is, do we remove duplicates? This may depend on what you want to do. Certainly
-# seeing the same protein $p$ a second time does not add to the set of GO annotations in this cluster after we've seen $p$
-# before, so should it change the *count* of these GO terms? 
+# How many proteins are in your cluster? This depends on how we count. If the exact same protein name appears twice in the
+# same cluster, does it count for 1, or 2? That is, do we remove duplicates? This may depend on what you want to do.
+# Certainly seeing the same protein $p$ a second time does not add to the set of GO annotations in this cluster after we've
+# seen $p$ before, so should it change the *count* of these GO terms? 
 # Things to consider in this question: though you may be tempted to remove duplicate proteins, this means you don't get any
-# points for correctly putting both copies of the same protein into the same cluster *if they came from different species*; this
-# is a significant drawback because correctly aligning a protein to itself between species is a pretty beneficial thing to do,
-# and getting no points for it sucks. Furthermore, we claim in the paper that aligning a network to itself should, of course,
-# result in a NetGO score of (very close to) 1; if you remove duplicates then aligning a network to itself results in every
-# cluster having only one protein, and a NetGO score of exactly zero.
-# For these reasons, we have decided to allow duplicates. The number of times a protein $u$ appears in a cluster is kept in
-# the variable M[u] (M=membership set).
-
+# points for correctly putting both copies of the same protein into the same cluster *if they came from different species*;
+# this is a significant drawback because correctly aligning a protein to itself between species is a pretty beneficial thing
+# to do, and getting no points for it sucks. Furthermore, we claim in the paper that aligning a network to itself should,
+# of course, result in a NetGO score of (very close to) 1; if you remove duplicates then aligning a network to itself results
+# in every cluster having only one protein, and a NetGO score of exactly zero.
+# For these reasons, we have decided to allow duplicates. The number of times a protein $u$ appears in a cluster is kept
+# in the variable M[u] (M=membership set).
 
 # CODING CONVENTIONS
-# AWK is an error prone language. I like it primarily because it's eminantly portable (should run anywhere a Linux distribution exists),
-# it's lightning fast (usually faster than Java or Python), and it can be used on the Unix command line to do simple (or complex) tasks.
-# Variables have dynamic type, and there are only 3 types: double precision, string, and array. All arrays are associative
-# (ie., dictionaries), and an element of an array can be another array, and different elements of the same array can have different type.
+# AWK is an error prone language. I like it primarily because it's supremely portable (e., any Linux distribution), it's
+# lightning fast (usually faster than Java or Python), and it can be used on the Unix command line to do simple (or complex)
+# tasks. Variables have dynamic type, and there are only 3 types: double precision, string, and array. All arrays are
+# associative (ie., dictionaries), and an element of an array can be another array, and different elements of the same array
+# can have different type.
 #
-# To implement "sets" in AWK, I use A[x]=1 to mean that x is in the set A; x can be a number, string, etc.
-# Sometimes I interpret it as a multi-set, where the value is an integer rather than Boolean. such as the membership array
+# To implement "sets" in AWK, I use A[x]=1 to mean that x is in the set A; x can be a number, string, etc. Sometimes
+# I interpret it as a multi-set, where the value is an integer rather than Boolean. such as the membership array
 # M[] which contains string elements that are names of proteins that occur in the cluster currently being processed.
 # (The multi-set is how we keep track of multiple occurances of the same protein in the same cluster.)
 # Note also that in AWK, if a variable (even an array element) doesn't exist and you try to access it, it will be created
@@ -94,10 +97,10 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # The primary data variables (global) in this program are set in the ARGIND program blocks at the bottom of the AWK script:
 #
 # CA is the "cluster alignment". Contents: CA[line_number][column_number]=proteinName
-# That is, CA[L] is the cluster of proteins that occured on line L of the input cluster (align) file. The number of protein names,
-# including duplicates, that occured on that line is length(CA[line_number]).
+# That is, CA[L] is the cluster of proteins that occured on line L of the input cluster (align) file. The number of protein
+# names, including duplicates, that occured on that line is length(CA[line_number]).
 #
-# pC is the protein-to-cluster multi-set, that tells us which cluster(s) a protein appeared in, and its multiplicity in that cluster
+# pC: protein-to-cluster multi-set; tells us which cluster(s) a protein appeared in, and its multiplicity in that cluster
 # Contains: pC[p][L]=count means protein p occurs in cluster (line number) L, count times.
 # length(pC) is thus the number of unique protein names that occured in your alignment file;
 # length(pC[p]) is the number of clusters # it appears in.
