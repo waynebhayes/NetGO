@@ -35,6 +35,7 @@ function acosd(x) { return acos(x)/PI*180 }
 function atand(x) { return atan(x)/PI*180 }
 function fact(k) {if(k<=0)return 1; else return k*fact(k-1);}
 function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
+function logChoose(n,k,     r,i) {r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i); return r}
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 
 # res1 is your variable, where the output set goes; it will be nuked and replaced with the set intersection of T1 and T2.
@@ -205,6 +206,19 @@ function Pearson2T(n,r){if(r==1)return 1e30; else return r*sqrt((n-2)/(1-r^2))}
 function PoissonPMF(l,k, r,i){if(l>700)return NormalDist(l,sqrt(l),k);r=exp(-l);for(i=k;i>0;i--)r*=l/i;return r} 
 function Poisson1_CDF(l,k, i,sum,psum){psum=-1;sum=0;for(i=k;psum!=sum;i++){psum=sum;sum+=PoissonPMF(l,i)}; return sum}
 function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*exp(-l)}
+
+function logHyperGeomPMF(k,n,K,N, sum) {
+    return logChoose(K,k)+logChoose(N-K,n-k)-logChoose(N,n);
+}
+function HyperGeomTail(k,n,K,N, sum,term,i) {
+    sum = term = exp(logHyperGeomPMF(k,n,K,N))
+    for(i=k+1; term/sum > 1e-16; i++) {
+	term = exp(logHyperGeomPMF(i,n,K,N))
+	sum += term
+    }
+    return sum
+}
+
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
 
 # The Spearman correlation is just the Pearson correlation of the rank. It measures monotonicity, not linearity.
