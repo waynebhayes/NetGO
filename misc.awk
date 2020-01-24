@@ -37,6 +37,8 @@ function fact(k) {if(k<=0)return 1; else return k*fact(k-1);}
 function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
 function logChoose(n,k,     r,i) {r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i); return r}
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
+function log2(n){return log(n)/log(2)}
+function log10(n){return log(n)/log(10)}
 
 # res1 is your variable, where the output set goes; it will be nuked and replaced with the set intersection of T1 and T2.
 function SetIntersect(res1,T1,T2,
