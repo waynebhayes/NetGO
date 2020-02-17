@@ -6,7 +6,7 @@ function NormDotProd(u,v,    _dot,_dot1,_dot2,i){_dot=_dot1=_dot2=0;
     return _dot/sqrt(_dot1*_dot2);
 }
 function inarray(element,array,      i){for(i=1;i<=length(array);i++)if(element==array[i])return 1; return 0}
-function IsPrime(N,   i){for(i=2;i<=sqrt(N); i++)if(N/i==int(N/i))return 0; return 1}
+function IsPrime(N,   i){if(N<2)return 0; for(i=2;i<=sqrt(N); i++)if(N/i==int(N/i))return 0; return 1}
 function NSORT(a,ai,   i,NsortTc){delete sortTb;delete sortTc; for(i in a)sortTb[a[i]*(1+1e-7*rand())]=i;NsortTc=asorti(sortTb,sortTc);for(i=1;i<=NsortTc;i++)ai[i]=sortTb[sortTc[i]];return NsortTc}
 #Bubble Sort: assumes 1-indexed arrays!
 function bsort(array,outindices,    N,i,j,temp){
@@ -24,6 +24,7 @@ function bsort(array,outindices,    N,i,j,temp){
     }
     return N;
 }
+function Factor(n,  i,s){s="";i=int(sqrt(n)); while(i>1){while(n/i==int(n/i)){s=s" "i;n/=i} i--}; return s}
 function asin(x) { return atan2(x, sqrt(1-x*x)) }
 function acos(x) { return atan2(sqrt(1-x*x), x) }
 function atan(x) { return atan2(x,1) }
@@ -33,9 +34,41 @@ function tand(x) { return tan(x/180*PI) }
 function asind(x) { return asin(x)/PI*180 }
 function acosd(x) { return acos(x)/PI*180 }
 function atand(x) { return atan(x)/PI*180 }
-function fact(k) {if(k<=0)return 1; else return k*fact(k-1);}
+function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
+function logFact(k) {if(k<=0)return 0; else return log(k)+logFact(k-1)}
+function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
+function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
-function logChoose(n,k,     r,i) {r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i); return r}
+function logChoose(n,k,     r,i) {
+    if(n in _logChooseMemory && k in _logChooseMemory[n]) return _logChooseMemory[n][k];
+    r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i)
+    _logChooseMemory[n][k]=r
+    return r;
+}
+function HalfGamma(k)   {return sqrt(PI)*fact2(k-2)/2^((k-1)/2)}
+function logHalfGamma(k){return log(sqrt(PI))+logFact2(k-2)-(k-1)*log(sqrt(2))}
+function Gamma(x)    {if(x==int(x)) return fact(x-1);if(2*x==int(2*x))return HalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
+function logGamma(x) {if(x==int(x)) return logFact(x-1);if(2*x==int(2*x))return logHalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
+function IncGamma(s,x){
+    ASSERT(s==int(s)&&s>=1,"IncGamma: s must be int>=1 for now");
+    if(s==1)return exp(-x)
+    else return (s-1)*IncGamma(s-1,x) + x^(s-1)*exp(-x)
+}
+function logIncGamma(s,x){
+    ASSERT(s==int(s)&&s>=1,"logIncGamma: s must be int>=1 for now");
+    if(s==1)return -x;
+    else {
+	log_a = log(s-1)+logIncGamma(s-1,x)
+	log_c = (s-1)*log(x)-x
+	if(log_a - log_c < -700) return log_a
+	else if(log_a - log_c > 700) return log_c
+	else return log((s-1)*IncGamma(s-1,x) + x^(s-1)*exp(-x))
+    }
+}
+
+function Chi2_tail(df,x) {return IncGamma(df/2,x/2)/Gamma(df/2) }
+function logChi2_tail(df,x) {return logIncGamma(df/2,x/2)-logGamma(df/2) }
+
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 function log2(n){return log(n)/log(2)}
 function log10(n){return log(n)/log(10)}
@@ -147,13 +180,18 @@ function NormalPtoZ(quantile,    q,z1,n,d)
     z1 -= n / d;
     return (quantile > 0.5 ? -z1 : z1);
 }
+function Exp(x){
+    if(x < -723) retun 0;
+    else if(x > 720) return 1e300/1e-300; # evaluates to infinity without division by zero
+    else return exp(x);
+}
 function NormalPhi(x,    arg)
 {
     arg=-x*x/2;
-    if(arg<-700) return 0;
-    return 0.39894228040143267794*exp(arg)
+    if(arg<-723) return 1e-314;
+    return 0.39894228040143267794*Exp(arg)
 }
-function NormalDist(mu,sigma,x){E=(mu-x)^2/(2*sigma*sigma);return exp(-E)/(sigma*2.506628274631000502415765284811)}
+function NormalDist(mu,sigma,x){E=(mu-x)^2/(2*sigma*sigma);return Exp(-E)/(sigma*2.506628274631000502415765284811)}
 function NormalZ2P(x,    b0,b1,b2,b3,b4,b5,t,paren)
 {
     if(x<0) return 1-NormalZ2P(-x);
@@ -205,19 +243,44 @@ function StatConfidenceInterval(name,conf)
 }
 function Pearson2T(n,r){if(r==1)return 1e30; else return r*sqrt((n-2)/(1-r^2))}
 # The Poisson1_CDF is 1-CDF, and sums terms smallest to largest; near CDF=1 (ie., 1-CDF=0) it is accurate well below eps_mach.
-function PoissonPMF(l,k, r,i){if(l>700)return NormalDist(l,sqrt(l),k);r=exp(-l);for(i=k;i>0;i--)r*=l/i;return r} 
-function Poisson1_CDF(l,k, i,sum,psum){psum=-1;sum=0;for(i=k;psum!=sum;i++){psum=sum;sum+=PoissonPMF(l,i)}; return sum}
-function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*exp(-l)}
+function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*Exp(-l)}
+function PoissonPMF(l,k, r,i){if(l>723)return NormalDist(l,sqrt(l),k);r=Exp(-l);for(i=k;i>0;i--)r*=l/i;return r} 
+function LogPoissonPMF(l,k, r,i){r=-l;for(i=k;i>0;i--)r+=log(l/i);return r} 
+function Poisson1_CDF(l,k, i,sum,psum){psum=-1;sum=0;for(i=k;psum!=sum;i++){psum=sum;sum+=PoissonPMF(l,i)};
+    if(sum==0 && k<l) return 1; # this means the numbers are so big the sum got zero but we got less than expected.
+    else return sum
+}
+function LogPoisson1_CDF(l,k, i,sum,psum){pmax=2;max=-1e30;for(i=k;pmax!=max;i++){pmax=max;max=MAX(max,LogPoissonPMF(l,i))};
+    if(max==1 && k<l) return 0; # this means the numbers are so big the sum got zero but we got less than expected.
+    else return max/.894
+}
 
-function logHyperGeomPMF(k,n,K,N, sum) {
+# Return the logarithm of the area under the tail of the Normal(0,1) distribution from x out to infinity.
+# It is almost exact, derived by L hopitals rule.
+function logPhi(x){if(x>0)return logPhi(-x);return -(log(sqrt(2*PI))+x*x/2+log(-x))}
+
+function Log10Poisson1_CDF(l,k, i,sum,psum){return LogPoisson1_CDF(l,k, i,sum,psum)/2.302585092994046}
+
+# Hypergeometric distribution: Given: total population N, K of which have desired property.
+# What is the probability of k successes in n draws, without replacement?
+function logHyperGeomPMF(k,n,K,N) {
     return logChoose(K,k)+logChoose(N-K,n-k)-logChoose(N,n);
 }
-function HyperGeomTail(k,n,K,N, sum,term,i) {
-    sum = term = exp(logHyperGeomPMF(k,n,K,N))
-    for(i=k+1; term/sum > 1e-16; i++) {
-	term = exp(logHyperGeomPMF(i,n,K,N))
+function HyperGeomTail(k,n,K,N, sum,term,i,logTerm) {
+    ASSERT(k<=K && k<=n && K<=N && n<=N,"HyperGeom: impossible values "k"/"K","n"/"N)
+    if(k==0 && K>0) return 1;
+    if(k in _hyperGeomMem && n in _hyperGeomMem[k] && K in _hyperGeomMem[k][n] && N in _hyperGeomMem[k][n][K])
+	return _hyperGeomMem[k][n][K][N]
+    logTerm = logHyperGeomPMF(k,n,K,N)
+    sum = term = Exp(logTerm)
+    for(i=k+1; sum && term/sum > 1e-16; i++) {
+	logTerm = MAX(logTerm,logHyperGeomPMF(i,n,K,N)) # MAX = least negative = largest term
+	term = Exp(logTerm)
 	sum += term
     }
+    if(sum==0)sum=1e-320
+    _hyperGeomMem[k][n][K][N] = sum
+    _logHyperGeomTerm = logTerm;
     return sum
 }
 
