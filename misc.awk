@@ -34,12 +34,29 @@ function tand(x) { return tan(x/180*PI) }
 function asind(x) { return asin(x)/PI*180 }
 function acosd(x) { return acos(x)/PI*180 }
 function atand(x) { return atan(x)/PI*180 }
+
+#Taylor series for ln(1+x)
+function TaylorLog1(x,    n,term,sum){ASSERT(x>=-0.5&&x<=1,"TaylorLog1("x") will not converge");
+    n=1; term=x/n; while(ABS(term)>1e-20){n++;term*=-x/n}
+    sum=0;
+    while(n>0){sum+=term; term /=-x/n; n--}
+    return sum;
+}
+# Assuming S=a+b, but we only have log(a) and log(b), we want to compute log(S)=log(a+b)=log(a(1+b/a))=log(a)+log(1+b/a)
+# And then we can call TaylorLog1(b/a), except we do not have b/a explicitly, but we can get it with Exp(log_b-log_a)
+function LogSumLogs(log_a,log_b) {
+    m=MIN(log_a,log_b)
+    M=MAX(log_a,log_b)
+    return M+TaylorLog1(Exp(m-M))
+}
+
 function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
 function logFact(k) {if(k<=0)return 0; else return log(k)+logFact(k-1)}
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
 function logChoose(n,k,     r,i) {
+    ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
     if(n in _logChooseMemory && k in _logChooseMemory[n]) return _logChooseMemory[n][k];
     r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i)
     _logChooseMemory[n][k]=r
@@ -51,8 +68,8 @@ function Gamma(x)    {if(x==int(x)) return fact(x-1);if(2*x==int(2*x))return Hal
 function logGamma(x) {if(x==int(x)) return logFact(x-1);if(2*x==int(2*x))return logHalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
 function IncGamma(s,x){
     ASSERT(s==int(s)&&s>=1,"IncGamma: s must be int>=1 for now");
-    if(s==1)return exp(-x)
-    else return (s-1)*IncGamma(s-1,x) + x^(s-1)*exp(-x)
+    if(s==1)return Exp(-x)
+    else return (s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x)
 }
 function logIncGamma(s,x){
     ASSERT(s==int(s)&&s>=1,"logIncGamma: s must be int>=1 for now");
@@ -62,7 +79,7 @@ function logIncGamma(s,x){
 	log_c = (s-1)*log(x)-x
 	if(log_a - log_c < -700) return log_a
 	else if(log_a - log_c > 700) return log_c
-	else return log((s-1)*IncGamma(s-1,x) + x^(s-1)*exp(-x))
+	else return log((s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x))
     }
 }
 
@@ -271,26 +288,47 @@ function logPhi(z){
 function Log10Poisson1_CDF(l,k, i,sum,psum){return LogPoisson1_CDF(l,k, i,sum,psum)/2.302585092994046}
 
 # Hypergeometric distribution: Given: total population N, K of which have desired property.
-# What is the probability of k successes in n draws, without replacement?
+# What is the probability of exactly k successes in n draws, without replacement?
 function logHyperGeomPMF(k,n,K,N) {
+    #print "logHyperGeomPMF",k,n,K,N
     return logChoose(K,k)+logChoose(N-K,n-k)-logChoose(N,n);
+    #return logChoose(n,k)+logChoose(N-n,K-k)-logChoose(N,K);
 }
 function HyperGeomTail(k,n,K,N, sum,term,i,logTerm) {
-    ASSERT(k<=K && k<=n && K<=N && n<=N,"HyperGeom: impossible values "k"/"K","n"/"N)
+    #print "HyperGeomTail",k,n,K,N
+    # 166 1113 2141 3436
+    ASSERT(k<=K && k<=n && K<=N && n<=N && n-k<=N-K && K-k<=N-n,"HyperGeomTail: impossible values "k"/"K","n"/"N)
     if(k==0 && K>0) return 1;
     if(k in _hyperGeomMem && n in _hyperGeomMem[k] && K in _hyperGeomMem[k][n] && N in _hyperGeomMem[k][n][K])
 	return _hyperGeomMem[k][n][K][N]
     logTerm = logHyperGeomPMF(k,n,K,N)
     sum = term = Exp(logTerm)
-    for(i=k+1; sum && term/sum > 1e-16; i++) {
-	logTerm = MAX(logTerm,logHyperGeomPMF(i,n,K,N)) # MAX = least negative = largest term
+    for(i=k+1; (i<=n && i<=K && sum < 0.999999) && (logTerm<723 || (sum && (term/sum > 1e-20))); i++) {
+	#print i,logTerm,term,sum,sum-1
+	logTerm = logHyperGeomPMF(i,n,K,N)
 	term = Exp(logTerm)
 	sum += term
     }
+    #print "DONE!!!",sum
     if(sum==0)sum=1e-320
     _hyperGeomMem[k][n][K][N] = sum
-    _logHyperGeomTerm = logTerm;
     return sum
+}
+
+function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
+    #print "logHyperGeomTail",k,n,K,N
+    ASSERT(k<=K && k<=n && K<=N && n<=N && n-k<=N-K && K-k<=N-n,"HyperGeomTail: impossible values "k"/"K","n"/"N)
+    if(k==0 && K>0) return 0;
+    if(k in _logHyperGeomMem && n in _logHyperGeomMem[k] && K in _logHyperGeomMem[k][n] && N in _logHyperGeomMem[k][n][K])
+	return _logHyperGeomMem[k][n][K][N]
+    logTerm = logHyperGeomPMF(k,n,K,N)
+    logSum = logTerm
+    for(i=k+1; i<=n && i<=K && logTerm-logSum > -40; i++) {
+	logTerm = logHyperGeomPMF(i,n,K,N)
+	logSum  = LogSumLogs(logSum,logTerm)
+    }
+    _logHyperGeomMem[k][n][K][N] = logSum
+    return logSum
 }
 
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
