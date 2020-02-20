@@ -256,8 +256,17 @@ function LogPoisson1_CDF(l,k, i,sum,psum){pmax=2;max=-1e30;for(i=k;pmax!=max;i++
 }
 
 # Return the logarithm of the area under the tail of the Normal(0,1) distribution from x out to infinity.
-# It is almost exact, derived by L hopitals rule.
-function logPhi(x){if(x>0)return logPhi(-x);return -(log(sqrt(2*PI))+x*x/2+log(-x))}
+function logPhi(z){
+    # The first is derived by L hopitals rule, and returns the log of the tail of the normal distribution at z.
+    # At a p-value of 0.01, the error is about 3%, and the percent error drops by a factor of about 1.5 per factor of 10
+    # decrease in p-value: so it is about 1.3% at p=1e-3; 0.7% at 1e-4; 0.43% at 1e-5; 0.3% at 1e-6; 0.22% at 1e-7, etc.
+    if(z<-1.40532)return -(log(sqrt(2*PI))+z*z/2+log(-z));
+    #The one below is a quadratic fit in the range sigma [-1.4,1] (ie., p-values in the range about 0.05 up to .8),
+    # and can be off by a few tens of percent but for p-values so large... do we really care?
+    else if(z<1.00268) return (-0.976263+((z+1.40532)/2.408)^(0.75)*(-.0686+0.9763))*log(10)
+    # Otherwise this is an excellent approximation for large z
+    else return -NormalZ2P(z)
+}
 
 function Log10Poisson1_CDF(l,k, i,sum,psum){return LogPoisson1_CDF(l,k, i,sum,psum)/2.302585092994046}
 
