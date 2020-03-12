@@ -1,4 +1,13 @@
 BEGIN{PI=M_PI=3.14159265358979324}
+
+# The default srand() uses time-of-day, which only changes once per second. Not good enough for paraell runs.
+function Srand(){
+    srand(); # seed with time-of-day
+    srand(srand()+PROCINFO["uid"]) # add user ID.
+    srand(srand()+PROCINFO["ppid"]) # add user parent PID.
+    srand(srand()+PROCINFO["pid"]) # add process ID
+}
+
 function int2binary(i){if(i<=0)return "0";_s="";while(i){_s=(i%2)""_s;i=int(i/2)}return _s}
 function Fatal(msg){printf "FATAL ERROR: %s\n",msg >"/dev/stderr"; exit(1);}
 function NormDotProd(u,v,    _dot,_dot1,_dot2,i){_dot=_dot1=_dot2=0;
@@ -289,6 +298,7 @@ function Log10Poisson1_CDF(l,k, i,sum,psum){return LogPoisson1_CDF(l,k, i,sum,ps
 
 # Hypergeometric distribution: Given: total population N, K of which have desired property.
 # What is the probability of exactly k successes in n draws, without replacement?
+function HyperGeomPMF(k,n,K,N){return Exp(logHyperGeomPMF(k,n,K,N))}
 function logHyperGeomPMF(k,n,K,N) {
     #print "logHyperGeomPMF",k,n,K,N
     return logChoose(K,k)+logChoose(N-K,n-k)-logChoose(N,n);
@@ -317,7 +327,7 @@ function HyperGeomTail(k,n,K,N, sum,term,i,logTerm) {
 
 function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
     #print "logHyperGeomTail",k,n,K,N
-    ASSERT(k<=K && k<=n && K<=N && n<=N && n-k<=N-K && K-k<=N-n,"HyperGeomTail: impossible values "k"/"K","n"/"N)
+    ASSERT(k<=K && k<=n && K<=N && n<=N && n-k<=N-K && K-k<=N-n,"logHyperGeomTail: impossible values "k"/"K","n"/"N)
     if(k==0 && K>0) return 0;
     if(k in _logHyperGeomMem && n in _logHyperGeomMem[k] && K in _logHyperGeomMem[k][n] && N in _logHyperGeomMem[k][n][K])
 	return _logHyperGeomMem[k][n][K][N]
@@ -330,6 +340,9 @@ function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
     _logHyperGeomMem[k][n][K][N] = logSum
     return logSum
 }
+
+# Exected number of aligned orthologs in a random alignment of G1 and G2 with n1,n2 nodes and h common ortholog pairs.
+function ExpectedPairedOrthologs(h,n1,n2, hg,k) {hg=0;for(k=0;k<h;k++)hg+=(h-k)/(n1*n2-k*(n1+n2-k));return hg}
 
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
 
@@ -418,3 +431,44 @@ function AUPR_F1(name,         Prec,Rec){Prec=AUPR_Prec(name); Rec=AUPR_Rec(name
 function AUPR_TPR(name,  TP, FN){TP=_AUPR_TP[name];FN=_AUPR_FN[name]; return TP/(TP+FN)}
 function AUPR_FPR(name,  FP, TN){FP=_AUPR_FP[name];TN=_AUPR_TN[name]; return FP/(FP+TN)}
 
+
+# The method of least squares is a standard technique used to find
+#  the equation of a straight line from a set of data. Equation for a
+#  straight line is given by 
+#	 y = mx + b
+#  where m is the slope of the line and b is the y-intercept.
+#
+#  Given a set of n points {(x1,y1), x2,y2),...,xn,yn)}, let
+#      SUMx = x1 + x2 + ... + xn
+#      SUMy = y1 + y2 + ... + yn
+#      SUMxy = x1*y1 + x2*y2 + ... + xn*yn
+#      SUMxx = x1*x1 + x2*x2 + ... + xn*xn
+#
+#  The slope and y-intercept for the least-squares line can be 
+#  calculated using the following equations:
+#        slope (m) = ( SUMx*SUMy - n*SUMxy ) / ( SUMx*SUMx - n*SUMxx ) 
+#  y-intercept (b) = ( SUMy - slope*SUMx ) / n
+# AUTHOR: Dora Abdullah (Fortran version, 11/96)
+# REVISED: RYL (converted to C, 12/11/96)
+# Converted to awk: Wayne Hayes (2020-March-09)
+
+function LeastSquaresReset(x,y) {_LS_SUMx=_LS_SUMy=_LS_SUMxy=_LS_SUMxx=_LS_n=0; delete _LS_x; delete _LS_y}
+function LeastSquaresSample(x,y) {_LS_SUMx+=x; _LS_SUMy+=y; _LS_SUMxy+=x*y;_LS_SUMxx+=x*x; _LS_x[_LS_n]=x; _LS_y[_LS_n]=y; ++_LS_n}
+function LeastSquaresSlope(){_LS_slope=(_LS_SUMx*_LS_SUMy - _LS_n*_LS_SUMxy )/( _LS_SUMx*_LS_SUMx - _LS_n*_LS_SUMxx)
+    return _LS_slope
+}
+function LeastSquares_y_intercept() { return ( _LS_SUMy - LeastSquaresSlope()*_LS_SUMx ) / _LS_n}
+function LeastSquaresMSR(  i) {
+  SUMres = 0;
+  SUMres2 = 0;
+  slope = LeastSquaresSlope();
+  y_intercept = LeastSquares_y_intercept();
+  for (i=0; i<_LS_n; i++) {
+    y_estimate = slope*_LS_x[i] + y_intercept;
+    res = _LS_y[i] - y_estimate;
+    SUMres += res;
+    SUMres2 += res*res;
+  }
+  return (SUMres2)/_LS_n;
+  variance = (SUMres2 - SUMres*SUMres/_LS_n)/(_LS_n-1);
+}
