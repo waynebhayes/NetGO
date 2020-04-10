@@ -1,5 +1,6 @@
 BEGIN{PI=M_PI=3.14159265358979324}
 
+function nul(s){} # do nothing; useful for holding temp strings in code on the command line.
 # The default srand() uses time-of-day, which only changes once per second. Not good enough for paraell runs.
 function Srand(){
     srand(); # seed with time-of-day
