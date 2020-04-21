@@ -282,7 +282,7 @@ function LogPoisson1_CDF(l,k, i,sum,psum){pmax=2;max=-1e30;for(i=k;pmax!=max;i++
     else return max/.894
 }
 
-# Return the logarithm of the area under the tail of the Normal(0,1) distribution from x out to infinity.
+# Return the logarithm of the area under the tail of the Normal(0,1) distribution from -infinity up to z
 function logPhi(z){
     # The first is derived by L hopitals rule, and returns the log of the tail of the normal distribution at z.
     # At a p-value of 0.01, the error is about 3%, and the percent error drops by a factor of about 1.5 per factor of 10

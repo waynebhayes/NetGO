@@ -7,12 +7,17 @@
 exeDIR=`dirname "$0"`
 PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
 
-USAGE="USAGE: $0 [-verbose] [-L] OBOfile.obo gene2goFile alignFile[s]
+USAGE="USAGE: $0 [-verbose] [-L|-R] OBOfile.obo gene2goFile alignFile[s]
 
     -L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which
     insists that a GO term must annotate every protein in a cluster for it to count.
     The Lenient option gives a GO term a weight per-cluster that is scaled by the
     number of proteins it annotates (so long as it's more than 1).
+
+    -R: Don't compute NetGO at all; instead, assume the alignFiles are *Resnik* outputs, and
+    compte the NetGO-weighted Resnik score.  The first word is ignored (usually 'max', meaning
+    the Maximum variant of Resnik), the 2nd and 3rd columns are the proteins aligned, and the
+    4th column is the Resnik score.
 
     OBOfile.obo: obo file from the Gene Ontology website; should be same version as gene2go.
 
@@ -131,11 +136,15 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # Thus the convention is to declare local variables as extra parameters (with extra whitespace or a newline after the
 # true parameter list).
 
+RESNIK=0
 DRACONIAN=1
 VERBOSE=0
 case "$1" in
+-verbose|-V) VERBOSE=1;shift;;
+esac
+case "$1" in
+-R*) RESNIK=1; shift;;
 -L*) DRACONIAN=0;shift;;
--verbose) VERBOSE=1;shift;;
 -*) die "unknown option '$1'";;
 esac
 [ $# -ge 3 ] || die "expecting at least 3 arguments: OBOfile.obo, gene2goFile, and at least one clusterAlignFile"
@@ -226,13 +235,23 @@ do
     #ARGIND==1{C[$1]=$2; C_[$2]=$1}
     #ARGIND==2{if($2 in C || $2 in C_){++GOfreq[$3];++pGO[$2][$3];++GOp[$3][$2]}}
 
-    BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE'}
+    BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
     #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
     #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
 
     #Clusters version
     # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
-    ARGIND==1{n=0;for(i=1;i<=NF;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}}
+    ARGIND==1{
+	startCol=1;endCol=NF
+	if(RESNIK){
+	    ASSERT(NF==5,"Expecting Resnik files to have exactly 5 columns, including leading NAF");
+	    NAF[FNR]=$1
+	    startCol=3;endCol=4
+	    R[FNR]=$NF
+	}
+	n=0;
+	for(i=startCol;i<=endCol;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}
+    }
 
     # Read the OBO file
     ARGIND==2{gsub("!.*$","")  # delete all comments
@@ -300,8 +319,22 @@ do
 	    if(!(p in pGO)){pGO[p][0]=1;delete pGO[p][0]} #proteins with no GO terms need pGO[p] explicit empty list.
 	    for(g in pGO[p]) sumGOp+=length(pC[p])*K_g(g) # total number of (equivalent) GO terms used in this alignment
 	}
-	know=K_AC(CA);
-	printf "%s: numClus %d numP %d sumGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
+	if(RESNIK) {
+	    for(line in R){
+		Kmax=0;
+		Kmin=1e30;
+		for(col in CA[line]){Kmin=MIN(Kmin,K_p(CA[line][col]));Kmax=MAX(Kmax,K_p(CA[line][col]))}
+		Kweight += Kmin
+		Resnik+=R[line]*Kmin
+		if(VERBOSE) {
+		    printf "%d\t%s\t%s\t%s\t(%g,%g)\n",NAF[line],CA[line][0],CA[line][1],R[line],Kmin,Kmax
+		}
+	    }
+	    printf "%s: numPairs %d numP %d sumGO %d GOcorpus %d Rweight(A) %g WeightedResnik %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), Kweight, Resnik/Kweight
+	}
+	else {
+	    know=K_AC(CA);
+	    printf "%s: numClus %d numP %d sumGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
+	}
     }' "$i" $OBO $GENE2GO
 done
-

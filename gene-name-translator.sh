@@ -47,6 +47,7 @@ awk -F"$TAB" '
 	    qName=$col; QNAME=toupper(qName);
 	    if(!(QNAME in TYPE)){
 		printf "No symbol \"%s\" of type \"'"$qType"'\" in '"$SPECIES_FILE"'\n",qName > "/dev/fd/2"
+		printf "UNKNOWN_SOURCE_TYPE\t%s\tUNKNOWN_DEST_TYPE\tUNKNOWN\n", qName
 		next
 	    }
 	    for(b in TYPE[QNAME])if(match(TYPE[QNAME][b],qType)){ # for all BioGRID IDs that have a match to this name,type pair
