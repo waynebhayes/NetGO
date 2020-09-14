@@ -7,12 +7,14 @@
 exeDIR=`dirname "$0"`
 PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
 
-USAGE="USAGE: $0 [-verbose] [-L|-R] OBOfile.obo gene2goFile alignFile[s]
+USAGE="USAGE: $0 [-verbose] [-L|-D|-R] OBOfile.obo gene2goFile alignFile[s]
 
     -L: 'Lenient'. The default behavior is what we call 'Dracanion' in the paper, which
     insists that a GO term must annotate every protein in a cluster for it to count.
     The Lenient option gives a GO term a weight per-cluster that is scaled by the
     number of proteins it annotates (so long as it's more than 1).
+
+    -D: Draconion (opposite of Lenient; specifying no option defaults to -D)
 
     -R: Don't compute NetGO at all; instead, assume the alignFiles are *Resnik* outputs, and
     compte the NetGO-weighted Resnik score.  The first word is ignored (usually 'max', meaning
@@ -145,6 +147,7 @@ esac
 case "$1" in
 -R*) RESNIK=1; shift;;
 -L*) DRACONIAN=0;shift;;
+-D*) DRACONIAN=1;shift;;
 -*) die "unknown option '$1'";;
 esac
 [ $# -ge 3 ] || die "expecting at least 3 arguments: OBOfile.obo, gene2goFile, and at least one clusterAlignFile"
