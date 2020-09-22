@@ -31,15 +31,17 @@ while [ $# -gt 0 ]; do
 done
 
 TMPDIR=/tmp/awkcel.$$
-trap "/bin/rm -rf $TMPDIR; exit" 0 1 2 3 15
+ trap "/bin/rm -rf $TMPDIR; exit" 0 1 2 3 15
 mkdir $TMPDIR
 argi=0
 touch $TMPDIR/ASSIGN $TMPDIR/VARCOLS
 for i
 do
     argi=`expr $argi + 1`
-    # Automatically create awk code to assign the appropriate variables from the header
-    (echo "if(ARGIND==$argi){"; grep -v '^#' "$i" | head -1 | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
+    # Automatically create awk code to assign the appropriate variables from the header.  This is tricky if the input is a pipe:
+    # we need to avoid eating *anything* other than the header; thus the weird "sed -nu" command, which removes leading
+    # comment lines, prints the header line for the later pipe, and leaves the rest of the input untouched.
+    (echo "if(ARGIND==$argi){"; sed -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
     (echo "if(ARGIND==$argi){"; cat $TMPDIR/varNames.$argi | awk '{printf "colName[%d]=\"%s\";varCol[\"%s\"]=%d\n",NR,$1,$1,NR}'; echo '}') >> $TMPDIR/VARCOLS
 done
 if [ "$VERBOSE" -eq 1 ]; then
