@@ -64,8 +64,9 @@ function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
 function logFact(k) {if(k<=0)return 0; else return log(k)+logFact(k-1)}
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
-function choose(n,k,     r,i) {r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
-function logChoose(n,k,     r,i) {
+function choose(n,k,     r,i) {ASSERT(0<=k&&k<=n,"choose error"); r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
+function logChoose(n,k) {ASSERT(0<=k && k <=n); return logFact(n)-logFact(k)-logFact(n-k)}
+function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
     if(n in _logChooseMemory && k in _logChooseMemory[n]) return _logChooseMemory[n][k];
     r=0;for(i=1;i<=k;i++)r+=log(n-(k-i))-log(i)
@@ -87,7 +88,7 @@ function logIncGamma(s,x){
     else {
 	log_a = log(s-1)+logIncGamma(s-1,x)
 	log_c = (s-1)*log(x)-x
-	if(log_a - log_c < -700) return log_a
+	if(log_a - log_c < -723) return log_a
 	else if(log_a - log_c > 700) return log_c
 	else return log((s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x))
     }
@@ -344,6 +345,45 @@ function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
 
 # Exected number of aligned orthologs in a random alignment of G1 and G2 with n1,n2 nodes and h common ortholog pairs.
 function ExpectedPairedOrthologs(h,n1,n2, hg,k) {hg=0;for(k=0;k<h;k++)hg+=(h-k)/(n1*n2-k*(n1+n2-k));return hg}
+
+function logAlignSearchSpace(n1,n2){ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2)=("n1","n2") cannot be negative");
+    if(n1>n2)return logAlignSearchSpace(n2,n1); else return logFact(n2)-logFact(n2-n1)
+}
+function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
+
+function ExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMax) {
+    ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
+    ASSERT(k>=0);
+    ll=MIN(l1,l2); # lower and upper lambdas
+    if(k>ll) return 0;
+    if(ll==0)return (k==0?AlignSearchSpace(n1,n2):0);
+    if(l2==n2)return (k==l1?AlignSearchSpace(n1,n2):0);
+    M=choose(l1,k) * choose(l2,k) * fact(k);
+    if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
+	if (k < l1-(n2-l2)) return 0;
+    U=0
+    muMin=MAX(0,(n1-k)-(n2-l2));
+    muMax=MIN(n1-l1,l2-k);
+    for(mu=muMin;mu<=muMax;mu++){
+	AS1=AlignSearchSpace(mu,l2-k);
+	AS2=AlignSearchSpace(n1-l1-mu,n2-l2-(l1-k));
+	U += choose(n1-l1,mu) * AS1*AS2* choose(n2-l2,l1-k) * fact(l1-k)
+    }
+    return M*U;
+}
+function logExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMax) {
+    ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
+    ASSERT(k>=0);
+    ll=MIN(l1,l2); # lower and upper lambdas
+    if(k>ll) return log(0);
+    if(ll==0)return (k==0?log(AlignSearchSpace(n1,n2)):log(0));
+    if(l1>n2-l2) return (k==l1-(n2-l2) ? log(AlignSearchSpace(n1,n2)) : log(0));
+    M=logChoose(l1,k) + logChoose(l2,k) + logFact(k);
+    U=logAlignSearchSpace(l1-k,n2-l2);
+    muMax=MIN(n1-l1,l2-k);
+    for(mu=0;mu<=muMax;mu++) U+= logAlignSearchSpace(mu,l2-k) + logAlignSearchSpace(n2-l2-(l1-k),n1-k-mu)
+    return M+U;
+}
 
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
 

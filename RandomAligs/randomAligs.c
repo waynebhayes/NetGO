@@ -143,6 +143,7 @@ int main(int argc, char *argv[])
 #endif
 
 #if EVALUATE
+    for(i=0;i<=1;i++) printf("G%d %d\n", i+1, netGO[i]->n);
     for(i=0;i<n1;i++)A[i]=i; // start with the identity mapping
     for(i=0;i<numSamples;i++) {
 	Shuffle(A, n1);
