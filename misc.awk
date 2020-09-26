@@ -360,7 +360,7 @@ function logAlignSearchSpace(n1,n2){ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2
 }
 function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
 
-function ExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
+function CountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
     ASSERT(k>=0);
     ll=MIN(l1,l2); # lower and upper lambdas
@@ -376,12 +376,13 @@ function ExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
     for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
 	AS1=AlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
 	AS2=AlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
-	U += AS1*AS2* choose(n1-l1,mu) * choose(n2-l2,l1-k) * fact(l1-k)
+	choices = choose(n1-l1,mu) * choose(n2-l2,l1-k)
+	U += choices * AS1 * AS2
     }
-    return M*U;
+    return M * fact(l1-k)*U;
 }
 # Below is just the logarithmic version of the above to handle much bigger numbers.
-function logExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
+function logCountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
     #if(ABS(logAlignSearchSpace(n1,n2)) < 700) # for small values the non-log one is actually more accurate.
 	#return log(ExactSharedGOtermAligCount(n1,n2,l1,l2,k));
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
@@ -399,12 +400,12 @@ function logExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,
     for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
 	AS1=logAlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
 	AS2=logAlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
-	logChooses = logChoose(n1-l1,mu) + logChoose(n2-l2,l1-k) + logFact(l1-k)
-	Utmp = AS1+AS2 + logChooses
+	logChoices = logChoose(n1-l1,mu) + logChoose(n2-l2,l1-k)
+	Utmp = AS1+AS2 + logChoices
 	if(U==0) U=Utmp
 	else U=LogSumLogs(U,Utmp);
     }
-    return M+U;
+    return M + logFact(l1-k)+U;
 }
 
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
