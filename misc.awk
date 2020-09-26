@@ -45,19 +45,28 @@ function asind(x) { return asin(x)/PI*180 }
 function acosd(x) { return acos(x)/PI*180 }
 function atand(x) { return atan(x)/PI*180 }
 
-#Taylor series for ln(1+x)
-function TaylorLog1(x,    n,term,sum){ASSERT(x>=-0.5&&x<=1,"TaylorLog1("x") will not converge");
-    n=1; term=x/n; while(ABS(term)>1e-20){n++;term*=-x/n}
+#Given x, compute ln(1+x), using the Taylor series if necessary
+function AccurateLog1(x,    n,term,sum){
+    if(x==0) return 0;
+    if(ABS(x)>1e-6) return log(1+x); # built-in one is very good in this range
+    ASSERT(x>=-0.5&&x<=1,"AccurateLog1("x") will not converge");
     sum=0;
-    while(n>0){sum+=term; term /=-x/n; n--}
+    n=1; term=x;
+    while(ABS(term/(ABS(sum)+ABS(term)))>1e-16){sum+=(term); n++; term*=x/n}
     return sum;
 }
 # Assuming S=a+b, but we only have log(a) and log(b), we want to compute log(S)=log(a+b)=log(a(1+b/a))=log(a)+log(1+b/a)
-# And then we can call TaylorLog1(b/a), except we do not have b/a explicitly, but we can get it with Exp(log_b-log_a)
-function LogSumLogs(log_a,log_b) {
+# And then we can call AccurateLog1(b/a), except we do not have b/a explicitly, but we can get it with Exp(log_b-log_a)
+function LogSumLogs(log_a,log_b,    truth, approx) {
     m=MIN(log_a,log_b)
     M=MAX(log_a,log_b)
-    return M+TaylorLog1(Exp(m-M))
+    approx = M+AccurateLog1(Exp(m-M))
+    if(ABS(log_a)<700 && ABS(log_b) < 700){
+	truth=log(exp(log_a)+exp(log_b));
+	if(ABS((approx-truth)/truth)>1e-10)
+	    printf "LogSumLogs badApprox: log_a %g log_b %g M %g m %g approx %g\n",log_a,log_b,M,m,approx > "/dev/stderr"
+    }
+    return approx
 }
 
 function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
@@ -351,37 +360,50 @@ function logAlignSearchSpace(n1,n2){ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2
 }
 function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
 
-function ExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMax) {
+function ExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
     ASSERT(k>=0);
     ll=MIN(l1,l2); # lower and upper lambdas
     if(k>ll) return 0;
     if(ll==0)return (k==0?AlignSearchSpace(n1,n2):0);
     if(l2==n2)return (k==l1?AlignSearchSpace(n1,n2):0);
-    M=choose(l1,k) * choose(l2,k) * fact(k);
     if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
 	if (k < l1-(n2-l2)) return 0;
+    M=choose(l1,k) * choose(l2,k) * fact(k); # aligning the k matched pairs
     U=0
     muMin=MAX(0,(n1-k)-(n2-l2));
     muMax=MIN(n1-l1,l2-k);
-    for(mu=muMin;mu<=muMax;mu++){
-	AS1=AlignSearchSpace(mu,l2-k);
-	AS2=AlignSearchSpace(n1-l1-mu,n2-l2-(l1-k));
-	U += choose(n1-l1,mu) * AS1*AS2* choose(n2-l2,l1-k) * fact(l1-k)
+    for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
+	AS1=AlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
+	AS2=AlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
+	U += AS1*AS2* choose(n1-l1,mu) * choose(n2-l2,l1-k) * fact(l1-k)
     }
     return M*U;
 }
-function logExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,mu,muMax) {
+# Below is just the logarithmic version of the above to handle much bigger numbers.
+function logExactSharedGOtermAligCount(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
+    #if(ABS(logAlignSearchSpace(n1,n2)) < 700) # for small values the non-log one is actually more accurate.
+	#return log(ExactSharedGOtermAligCount(n1,n2,l1,l2,k));
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
     ASSERT(k>=0);
     ll=MIN(l1,l2); # lower and upper lambdas
     if(k>ll) return log(0);
-    if(ll==0)return (k==0?log(AlignSearchSpace(n1,n2)):log(0));
-    if(l1>n2-l2) return (k==l1-(n2-l2) ? log(AlignSearchSpace(n1,n2)) : log(0));
+    if(ll==0)return (k==0?logAlignSearchSpace(n1,n2):log(0));
+    if(l2==n2)return (k==l1?logAlignSearchSpace(n1,n2):log(0));
+    if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
+	if (k < l1-(n2-l2)) return log(0);
     M=logChoose(l1,k) + logChoose(l2,k) + logFact(k);
-    U=logAlignSearchSpace(l1-k,n2-l2);
+    U=0
+    muMin=MAX(0,(n1-k)-(n2-l2));
     muMax=MIN(n1-l1,l2-k);
-    for(mu=0;mu<=muMax;mu++) U+= logAlignSearchSpace(mu,l2-k) + logAlignSearchSpace(n2-l2-(l1-k),n1-k-mu)
+    for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
+	AS1=logAlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
+	AS2=logAlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
+	logChooses = logChoose(n1-l1,mu) + logChoose(n2-l2,l1-k) + logFact(l1-k)
+	Utmp = AS1+AS2 + logChooses
+	if(U==0) U=Utmp
+	else U=LogSumLogs(U,Utmp);
+    }
     return M+U;
 }
 
