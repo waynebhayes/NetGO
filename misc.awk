@@ -49,10 +49,12 @@ function atand(x) { return atan(x)/PI*180 }
 function AccurateLog1(x,    n,term,sum){
     if(x==0) return 0;
     if(ABS(x)>1e-6) return log(1+x); # built-in one is very good in this range
+    if(x in _AccLog1Mem) return _AccLog1Mem[x];
     ASSERT(x>=-0.5&&x<=1,"AccurateLog1("x") will not converge");
     sum=0;
     n=1; term=x;
     while(ABS(term/(ABS(sum)+ABS(term)))>1e-16){sum+=(term); n++; term*=x/n}
+    _AccLog1Mem[x]=sum;
     return sum;
 }
 # Assuming S=a+b, but we only have log(a) and log(b), we want to compute log(S)=log(a+b)=log(a(1+b/a))=log(a)+log(1+b/a)
@@ -70,11 +72,15 @@ function LogSumLogs(log_a,log_b,    truth, approx) {
 }
 
 function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
-function logFact(k) {if(k<=0)return 0; else return log(k)+logFact(k-1)}
+function logFact(k) { if(_memLogFact[k]) return _memLogFact[k];
+    if(k<=0)return 0; else return (_memLogFact[k]=log(k)+logFact(k-1));
+}
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 function choose(n,k,     r,i) {ASSERT(0<=k&&k<=n,"choose error"); r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
-function logChoose(n,k) {ASSERT(0<=k && k <=n); return logFact(n)-logFact(k)-logFact(n-k)}
+function logChoose(n,k, result) {if(_memLogChoose[n][k]) return _memLogChoose[n][k];
+    ASSERT(0<=k && k <=n); return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
+}
 function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
     if(n in _logChooseMemory && k in _logChooseMemory[n]) return _logChooseMemory[n][k];
@@ -355,8 +361,11 @@ function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
 # Exected number of aligned orthologs in a random alignment of G1 and G2 with n1,n2 nodes and h common ortholog pairs.
 function ExpectedPairedOrthologs(h,n1,n2, hg,k) {hg=0;for(k=0;k<h;k++)hg+=(h-k)/(n1*n2-k*(n1+n2-k));return hg}
 
-function logAlignSearchSpace(n1,n2){ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2)=("n1","n2") cannot be negative");
-    if(n1>n2)return logAlignSearchSpace(n2,n1); else return logFact(n2)-logFact(n2-n1)
+function logAlignSearchSpace(n1,n2, result){
+    if(_memLogAligSS[n1][n2]) return _memLogAligSS[n1][n2];
+    ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2)=("n1","n2") cannot be negative");
+    if(n1>n2) result=logAlignSearchSpace(n2,n1); else result = logFact(n2)-logFact(n2-n1);
+    return (_memLogAligSS[n1][n2] = result);
 }
 function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
 
@@ -381,10 +390,9 @@ function CountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
     }
     return M * fact(l1-k)*U;
 }
+
 # Below is just the logarithmic version of the above to handle much bigger numbers.
 function logCountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
-    #if(ABS(logAlignSearchSpace(n1,n2)) < 700) # for small values the non-log one is actually more accurate.
-	#return log(ExactSharedGOtermAligCount(n1,n2,l1,l2,k));
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
     ASSERT(k>=0);
     ll=MIN(l1,l2); # lower and upper lambdas

@@ -1,10 +1,11 @@
 #!/bin/sh
-USAGE="USAGE: $0 [-f] [-hg] [-p] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
+USAGE="USAGE: $0 [-f] [-hg] [-com] [-p] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
 
 Notes:
     - default: for each GO term, print p-values compared to random alignment based on Poisson distribution.
     - '-f' means: for each GO term, list its freuencies in G1, G2, and the alignment
     - '-hg' means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
+    - '-com' means: for each GO term, print p-values according to our novel exact Combinatiorial method
     - '-p' means: for each pair of proteins in the alignment, list the GO terms they share
     - networks MUST be in edgelist format, with file names that end in '.el'
     - obo file name MUST end in '.obo'
@@ -14,6 +15,7 @@ FATAL: $@">&2; exit 1
 }
 FREQ=0
 HyperGeo=0
+ExactComb=0
 LIST_PROTEINS=0
 
 while true; do
@@ -21,6 +23,7 @@ while true; do
     -p) LIST_PROTEINS=1; shift;;
     -f) FREQ=1; shift;;
     -hg) HyperGeo=1; shift;;
+    -com) ExactComb=1; shift;;
     -*) die "unknown option '$1'";;
     *) break ;;
     esac
@@ -36,7 +39,7 @@ trap "/bin/rm -rf $TMPDIR" 0 1 2 3 15
 ( BioGRIDname $s1; BioGRIDname $s2) > $TMPDIR/names.txt
 
 hawk '
-    BEGIN{OBO_ARGIND=1e30; LIST_PROTEINS='$LIST_PROTEINS'; HyperGeo='$HyperGeo'; FREQ='$FREQ'}
+    BEGIN{OBO_ARGIND=1e30; LIST_PROTEINS='$LIST_PROTEINS'; HyperGeo='$HyperGeo'; ExactComb='$ExactComb';FREQ='$FREQ'}
     ARGIND==1{ # get tax IDs
 	ASSERT(NF>=3,"tax ID from BioGRIDname line is too short: "$0);
 	name[FNR]=$1;for(i=3;i<=NF;i++)tax[FNR][$i]=taxIDs[$i]=tax2net[$i]=FNR
@@ -166,21 +169,29 @@ hawk '
     # Except we may not actually have n1 pairs because some will have *no* annotations, so use numProteins in gene2go
     ENDFILE {if(ARGIND>=OBO_ARGIND+2) {
 	print "Statistics for ENDFILE "FILENAME
+
 	totalExpected=0;
 	totalPairs=0
 	n1=length(deg[1])
 	n2=length(deg[2])
+
+	if(ExactComb){
+	    Exact_A=logAlignSearchSpace(n1,n2); # this is a constant, compute it only once
+	    printf "Computed logAlignSearchSpace(%d,%d)=%g\n",n1,n2,Exact_A
+	}
+
 	for(g in allGO) if(g in GOfreq[1] && g in GOfreq[2])
 	{
+	    printf "%s", g
+	    if(FREQ) {
+		printf " GOfreq %d %d %d", GOfreq[1][g],GOfreq[2][g],numAligPairs[g]
+	    }
 	    expected = GOfreq[1][g]*GOfreq[2][g]/n2 #*numAligFiles;
 	    totalExpected += expected
 	    totalPairs+=numAligPairs[g]
 	    pValuePoisson = Poisson1_CDF(expected,numAligPairs[g]);
 	    if(pValuePoisson == 0 && numAligPairs[g]>expected) pValuePoisson=1e-320 # recover from underflow
-	    printf "%s PoissonTail( %g %d )= %g\n", g, expected, numAligPairs[g], pValuePoisson;
-	    if(FREQ) {
-		printf "%s GOfreq %d %d %d\n", g, GOfreq[1][g],GOfreq[2][g],numAligPairs[g]
-	    }
+	    printf " PoissonTail( %g %d )= %g", expected, numAligPairs[g], pValuePoisson;
 
 	    if(HyperGeo) {
 		# number of pairs that share GO term g, indep of alignment, in prep for hyperGeom
@@ -195,13 +206,18 @@ hawk '
 		ASSERT(l2>0,"l2");
 		hyper_K= l1*l2 - l1*(l1-1)/2 #*numAligFiles
 		hyper_N= n1*n2 - n1*(n1-1)/2 #*numAligFiles
-		printf "%s HyperGeom( %d %d %d %d )= ",g,hyper_k,hyper_n,hyper_K,hyper_N;fflush("")
+		printf " HyperGeom( %d %d %d %d )=",g,hyper_k,hyper_n,hyper_K,hyper_N;fflush("")
 		#pValueHyperGeom = HyperGeomTail(hyper_k,hyper_n,hyper_K,hyper_N) # This is WAY slow!
 		# logHyperGeoTail is much faster:
 		pValueHyperGeom = exp(logHyperGeomTail(hyper_k,hyper_n,hyper_K,hyper_N))
-		printf "%g\n", pValueHyperGeom
+		printf " %g", pValueHyperGeom
 		#printf "diff %g %g %g\n", pValuePoisson, pValueHyperGeom, ABS(pValuePoisson-pValueHyperGeom)/MIN(pValuePoisson,pValueHyperGeom)
 	    }
+	    if(ExactComb){
+		Exact_MU=logCountGOtermAlignments(n1,n2,GOfreq[1][g],GOfreq[2][g],numAligPairs[g]);
+		printf " ExactComb (%g %g) = %g",Exact_MU,Exact_A,exp(Exact_MU-Exact_A);fflush("")
+	    }
+	    print ""
 	}
 	printf "GO total expected Poisson mean is %g, got %d, \n", totalExpected, totalPairs;
 	#printf "log10(p-value) %g\n", Log10Poisson1_CDF(totalExpected,totalPairs);

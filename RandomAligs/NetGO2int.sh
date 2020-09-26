@@ -14,7 +14,7 @@ G2 n2
 n2 numGOn2 ..."
 die() { (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1
 }
-[ $# -eq 5 ] || die "Expecting exactly 5 arguments"
+[ $# -eq 5 ] || die "missing arguments"
 gene2GO="$5"; [ -f "$5" ] || die "can't find file '$5'"
 
 tax1=`if echo "$1" | grep '^[0-9]*$' >/dev/null; then echo $1; else BioGRIDname $1 | cut -f3- | newlines | while read t; do if grep -l "^$t	" "$gene2GO" >/dev/null; then echo $t; break; fi; done; fi`

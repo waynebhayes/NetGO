@@ -4,6 +4,8 @@
 #include "rand48.h"
 
 #define MAX_NODES 22500 // used mostly for testing
+#define MAX_GO 15000
+#define MAX_GO_FREQ 15000
 
 // These are mutually exclusive
 #define TEST_IO 0
@@ -11,7 +13,7 @@
 #define EVALUATE 1
 #define MUTUALLY_EXCLUSIVE (TEST_IO+TEST_SHUFFLE+EVALUATE)
 
-static int maxGO;
+static int maxGO, numSamples;
 
 typedef struct _NetGO {
     int n; // numNodes
@@ -58,6 +60,7 @@ NETGO *ReadNetGO(FILE *fp)
     return N;
 }
 
+
 void EvalAlignment(NETGO *netGO[], int A[])
 {
     int g, numShared[maxGO]; // number of *protein pairs* that shared each GO term.
@@ -65,7 +68,7 @@ void EvalAlignment(NETGO *netGO[], int A[])
     int n[2], i[2];
     n[0]=netGO[0]->n;
     n[1]=netGO[1]->n;
-    for(i[0]=0;i[0]<n[0];i[0]++) // for each node in G0
+    for(i[0]=0;i[0]<n[0];i[0]++) // for each node in in the smaller network
     {
 	i[1] = A[i[0]];
 	int j, nG[2], whoMin = 0, other; // who has fewer GO terms, and who's the other?
@@ -82,7 +85,7 @@ void EvalAlignment(NETGO *netGO[], int A[])
 
     //printf("A"); for(g=0;g<n[0];g++)printf(" %d",A[g]); putchar('\n');
     for(g=0;g<maxGO;g++)
-	printf("%d %d %d %d\n", g, netGO[0]->GOfreq[g], netGO[1]->GOfreq[g], numShared[g]);
+	if(numShared[g]) printf("%d %d %d %d\n", g, netGO[0]->GOfreq[g], netGO[1]->GOfreq[g], numShared[g]);
 }
 
 int Shuffle(int A[], int n)
@@ -104,7 +107,7 @@ int main(int argc, char *argv[])
     srand48(seed);
 
     assert(argc==2);
-    int numSamples = atoi(argv[1]);
+    numSamples = atoi(argv[1]);
     assert(numSamples > 0);
     
     assert(1==fscanf(fp,"maxGO %d\n", &maxGO));
@@ -143,11 +146,14 @@ int main(int argc, char *argv[])
 #endif
 
 #if EVALUATE
+    printf("N %d\n",numSamples);
     for(i=0;i<=1;i++) printf("G%d %d\n", i+1, netGO[i]->n);
     for(i=0;i<n1;i++)A[i]=i; // start with the identity mapping
     for(i=0;i<numSamples;i++) {
 	Shuffle(A, n1);
 	EvalAlignment(netGO, A);
     }
+    //PrintSummary(netGO);
 #endif
+    return 0;
 }
