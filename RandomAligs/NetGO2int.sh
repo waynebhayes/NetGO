@@ -17,15 +17,15 @@ die() { (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1
 [ $# -eq 5 ] || die "missing arguments"
 gene2GO="$5"; [ -f "$5" ] || die "can't find file '$5'"
 
-tax1=`if echo "$1" | grep '^[0-9]*$' >/dev/null; then echo $1; else BioGRIDname $1 | cut -f3- | newlines | while read t; do if grep -l "^$t	" "$gene2GO" >/dev/null; then echo $t; break; fi; done; fi`
+tax1=`if echo "$1" | grep '^[0-9]*$' >/dev/null; then echo $1; else BioGRIDname $1 | cut -f3- | newlines | while read t; do if fgrep -x "$t" "$gene2GO.taxIDs"; then break; fi; done; fi`
 [ -n "$tax1" -a "$tax1" -gt 0 ] || die "Can't find taxonomic ID for species '$1'"
-tax2=`if echo "$2" | grep '^[0-9]*$' >/dev/null; then echo $2; else BioGRIDname $2 | cut -f3- | newlines | while read t; do if grep -l "^$t	" "$gene2GO" >/dev/null; then echo $t; break; fi; done; fi`
+tax2=`if echo "$2" | grep '^[0-9]*$' >/dev/null; then echo $2; else BioGRIDname $2 | cut -f3- | newlines | while read t; do if fgrep -x "$t" "$gene2GO.taxIDs"; then break; fi; done; fi`
 [ -n "$tax2" -a "$tax2" -gt 0 ] || die "Can't find taxonomic ID for species '$2'"
 
 G1="$3"; [ -f "$G1" ] || die "can't find file '$G1'"
 G2="$4"; [ -f "$G2" ] || die "can't find file '$G2'"
 
-hawk 'BEGIN{
+exec hawk 'BEGIN{
     tax2G['$tax1']=1;tax2G['$tax2']=2;
     for(i=1;i<=2;i++){
 	pName2int[i][-1]=0;
