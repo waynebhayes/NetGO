@@ -4,8 +4,7 @@
 #include "rand48.h"
 
 #define MAX_NODES 22500 // used mostly for testing
-#define MAX_GO 15000
-#define MAX_GO_FREQ 15000
+#define MAX_GO 22500 // used mostly for testing
 
 // These are mutually exclusive
 #define TEST_IO 0
@@ -63,7 +62,9 @@ NETGO *ReadNetGO(FILE *fp)
 
 void EvalAlignment(NETGO *netGO[], int A[])
 {
-    int g, numShared[maxGO]; // number of *protein pairs* that shared each GO term.
+    // For each GO term g, numShared[g] is number of protein pairs that shared g in the alignment A[].
+    // In the combinatorial analysis in the paper, numShared[g] is simply "k".
+    static int g, numShared[MAX_GO];
     for(g=0;g<maxGO;g++) numShared[g]=0;
     int n[2], i[2];
     n[0]=netGO[0]->n;
@@ -84,17 +85,19 @@ void EvalAlignment(NETGO *netGO[], int A[])
     }
 
     //printf("A"); for(g=0;g<n[0];g++)printf(" %d",A[g]); putchar('\n');
-    for(g=0;g<maxGO;g++)
-	if(numShared[g]) printf("%d %d %d %d\n", g, netGO[0]->GOfreq[g], netGO[1]->GOfreq[g], numShared[g]);
+    for(g=0;g<maxGO;g++) if(numShared[g]>0) // avoid output when k=0 since output becomes HUGE
+	    printf("%d %d %d %d\n", g, netGO[0]->GOfreq[g], netGO[1]->GOfreq[g], numShared[g]);
 }
 
 int Shuffle(int A[], int n)
 {
     int i;
-    for(i=0;i<n;i++)
+    for(i=0;i<n-1;i++)
     {
-	int who = i+1+(n-1-i)*drand48();
+	int who = i+1+(n-i-1)*drand48();
+	assert(0 < who && who < n); // >0 because we don't swap with ourselves
 	int tmp = A[who]; A[who]=A[i]; A[i]=tmp;
+	assert(0 <= tmp && tmp < n);
     }
     return n;
 }
@@ -111,6 +114,7 @@ int main(int argc, char *argv[])
     assert(numSamples > 0);
     
     assert(1==fscanf(fp,"maxGO %d\n", &maxGO));
+    assert(0 <= maxGO && maxGO < MAX_GO);
     NETGO *netGO[2];
     netGO[0] = ReadNetGO(fp);
     netGO[1] = ReadNetGO(fp);
