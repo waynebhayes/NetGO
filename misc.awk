@@ -46,22 +46,28 @@ function acosd(x) { return acos(x)/PI*180 }
 function atand(x) { return atan(x)/PI*180 }
 
 #Given x, compute ln(1+x), using the Taylor series if necessary
-function AccurateLog1(x,    n,term,sum){
-    if(x==0) return 0;
-    if(ABS(x)>1e-6) return log(1+x); # built-in one is very good in this range
-    if(x in _AccLog1Mem) return _AccLog1Mem[x];
+function AccurateLog1(x,    absX,n,term,sum){
+    return log(1+x); # fuck it
+    absX=ABS(x);
+    if(absX<1e-15) return x; # close to machine eps? it's just x
+    if(absX>1e-6) return log(1+x); # built-in one is very good in this range
     ASSERT(x>=-0.5&&x<=1,"AccurateLog1("x") will not converge");
+    if(x in _memAccLog1) return _memAccLog1[x];
     sum=0;
     n=1; term=x;
     while(ABS(term/(ABS(sum)+ABS(term)))>1e-16){sum+=(term); n++; term*=x/n}
-    _AccLog1Mem[x]=sum;
-    return sum;
+    if(n>_nMaxAccLog1){_nMaxAccLog1=n; printf "AccurateLog: memoize log(1+%.16g)=%.16g, nMax %d\n",x,sum,_nMaxAccLog1 >"/dev/fd/2"}
+    return (_memAccLog1[x]=sum);
 }
 # Assuming S=a+b, but we only have log(a) and log(b), we want to compute log(S)=log(a+b)=log(a(1+b/a))=log(a)+log(1+b/a)
 # And then we can call AccurateLog1(b/a), except we do not have b/a explicitly, but we can get it with Exp(log_b-log_a)
 function LogSumLogs(log_a,log_b,    truth, approx) {
     m=MIN(log_a,log_b)
     M=MAX(log_a,log_b)
+    ASSERT(M>=m,"BUG: M is not greater than m in LogSumLogs");
+    return M+log(1+Exp(m-M))
+    if(M-m > 35) return M; # m < M*machine_eps, so m won't change M.
+    # fuck it
     approx = M+AccurateLog1(Exp(m-M))
     if(ABS(log_a)<700 && ABS(log_b) < 700){
 	truth=log(exp(log_a)+exp(log_b));
@@ -72,13 +78,13 @@ function LogSumLogs(log_a,log_b,    truth, approx) {
 }
 
 function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
-function logFact(k) { if(_memLogFact[k]) return _memLogFact[k];
+function logFact(k) { if(k in _memLogFact) return _memLogFact[k];
     if(k<=0)return 0; else return (_memLogFact[k]=log(k)+logFact(k-1));
 }
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 function choose(n,k,     r,i) {ASSERT(0<=k&&k<=n,"choose error"); r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
-function logChoose(n,k, result) {if(_memLogChoose[n][k]) return _memLogChoose[n][k];
+function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
     ASSERT(0<=k && k <=n); return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
 }
 function logChooseClever(n,k,     r,i) {
@@ -362,7 +368,7 @@ function logHyperGeomTail(k,n,K,N, logSum,logTerm,i) {
 function ExpectedPairedOrthologs(h,n1,n2, hg,k) {hg=0;for(k=0;k<h;k++)hg+=(h-k)/(n1*n2-k*(n1+n2-k));return hg}
 
 function logAlignSearchSpace(n1,n2, result){
-    if(_memLogAligSS[n1][n2]) return _memLogAligSS[n1][n2];
+    if(n1 in _memLogAligSS && n2 in _memLogAligSS[n1]) return _memLogAligSS[n1][n2];
     ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2)=("n1","n2") cannot be negative");
     if(n1>n2) result=logAlignSearchSpace(n2,n1); else result = logFact(n2)-logFact(n2-n1);
     return (_memLogAligSS[n1][n2] = result);
@@ -402,18 +408,18 @@ function logCountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax
     if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
 	if (k < l1-(n2-l2)) return log(0);
     M=logChoose(l1,k) + logChoose(l2,k) + logFact(k);
-    U=0
     muMin=MAX(0,(n1-k)-(n2-l2));
     muMax=MIN(n1-l1,l2-k);
+    U=0
     for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
+	# do NOT try any memoization here; too many parameters means not enough repeats -> actually SLOWER
 	AS1=logAlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
 	AS2=logAlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
-	logChoices = logChoose(n1-l1,mu) + logChoose(n2-l2,l1-k)
-	Utmp = AS1+AS2 + logChoices
-	if(U==0) U=Utmp
-	else U=LogSumLogs(U,Utmp);
+	Utmp = AS1+AS2 + logChoose(n1-l1,mu)
+	U=LogSumLogs(U,Utmp);
     }
-    return M + logFact(l1-k)+U;
+    U += logChoose(n2-l2,l1-k)
+    return  M + logFact(l1-k)+U;
 }
 
 function StatRV_Normal(){if(!_StatRV_which) { do { _StatRV_v1 = 2*rand()-1; _StatRV_v2 = 2*rand()-1; _StatRV_rsq = _StatRV_v1^2+_StatRV_v2^2; } while(_StatRV_rsq >= 1 || _StatRV_rsq == 0); _StatRV_fac=sqrt(-2*log(_StatRV_rsq)/_StatRV_rsq); _StatRV_next = _StatRV_v1*_StatRV_fac; _StatRV_which = 1; return _StatRV_v2*_StatRV_fac; } else { _StatRV_which = 0; return _StatRV_next; } } 
