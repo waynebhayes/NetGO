@@ -11,31 +11,50 @@ case "$1" in
     N="$2"
     shift 2
     ./NetGO2int.sh "$@" | ./ra.eval $N | # output is: g l1 l2 k, for each nonzero k in each of N alignments
-	exec hawk '/^[NG]/{print;next}NF==4{g=$1;l1=$2;l2=$3;k=$4;++shared[g][l1][l2][k];next}
-	{ASSERT(NF==4,"oops, NF!=4 during create");}
-	    END{for(g in shared)for(l1 in shared[g])for(l2 in shared[g][l1])for(k in shared[g][l1][l2])
-		    if(1*shared[g][l2][l2][k]>0) print g,l1,l2,k,shared[g][l2][l2][k];
-	    }'
+	exec hawk '/^[NG]/{print;next}
+	NF==4{g=$1;l1=$2;l2=$3;k=$4;++shared[g][l1][l2][k];next}
+	{ # we only get here if NF!=4 so at this point assertion failure is guaranteed
+	    ASSERT(NF==4,"oops, NF!=4 during create, line "FNR": "$0);
+	}
+	END{for(g in shared)for(l1 in shared[g])for(l2 in shared[g][l1])for(k in shared[g][l1][l2])
+		if(1*shared[g][l1][l2][k]>0) # if the frequency of (g,l1,l2,k) > 0, print it
+		    print g,l1,l2,k,shared[g][l1][l2][k];
+	}'
     ;;
--*combine) shift;
+-*combine) shift; # take a bunch of the above files of random sample alignments and merge them into one larger sample file.
     exec hawk '/^N/{N+=$2;next}
-	/^G/{gsub("^G",""); G=$1;
-	if(G in n) ASSERT($2==n[G],"Wrong nodeCount in "FILENAME":"$0", previously G"G" had "n[G]);else n[G]=$2; next}
-	NF==5{g=$1;l1=$2;l2=$3;k=$4;count=$5; shared[g][l1][l2][k]+=count; next}
-	{ASSERT(NF==5,"oops, NF!=5 during combine at "FILENAME" line "FNR":"$0);}
+	/^G/{gsub("^G",""); # remove the letter "G" to extract the integer (1 or 2) after it
+	    G=$1;
+	    if(G in n)
+		ASSERT($2==n[G],"Wrong nodeCount in "FILENAME":"$0", previously G"G" had "n[G]);
+	    else
+		n[G]=$2;
+	    next # skip to the next line of input
+	}
+	NF==5{ # we expect exactly 5 columns, otherwise error
+	    g=$1;l1=$2;l2=$3;k=$4;count=$5;
+	    shared[g][l1][l2][k]+=count;
+	    next # skip to the next line to avoid wasting CPU on the ASSERT below
+	}
+	{ # we only get here if NF!=5, so once we get here we are guaranteed an assertion failure
+	    ASSERT(NF==5,"oops, NF!=5 during combine at "FILENAME" line "FNR":"$0);
+	}
 	END{printf "N %d\nG1 %d\nG2 %d\n",N,n[1],n[2];
 	    for(g in shared)for(l1 in shared[g])for(l2 in shared[g][l1])for(k in shared[g][l1][l2])
-		if(1*shared[g][l1][l2][k]>0) print g,l1,l2,k,shared[g][l2][l2][k];
+		if(1*shared[g][l1][l2][k]>0) print g,l1,l2,k,shared[g][l1][l2][k];
 	}' "$@"
     ;;
--*eval) shift;
+-*eval) shift; # take ONE sample file on the standard input, and evaluate theory vs. experiment
     [ $# = 0 ] || die "not expecting any args after '-eval'"
     exec hawk '/^N/{N=$2;next}/^G/{n[++G]=$2;next}
 	NF==5 {
 	    g=$1; l1=$2; l2=$3; k=$4; count=$5;
 	    predict=exp(logCountGOtermAlignments(n[1],n[2],l1,l2,k)-logAlignSearchSpace(n[1],n[2]));
-	    actual=count/N;
-	    printf "%18s %10s %.9f %.9f %10s %.9f\n",$0,"",predict,actual,"",predict/actual
+	    observed=count/N;
+	    printf "%28s\t%.9f %.9f %10s %.9f\n",
+		$0, # print the whole input line for debugging purposes
+		predict, observed, "", # print the two values, plus more whitespace
+		predict/observed # finally, print the ratio of the two
 	    next
 	}
 	{ASSERT(NF==5,"oops, expecting exactly 5 columns on --eval")}' "$@"
