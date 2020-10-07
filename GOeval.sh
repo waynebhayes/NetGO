@@ -215,7 +215,7 @@ hawk '
 	    }
 	    if(ExactComb){
 		Exact_MU=logCountGOtermAlignments(n1,n2,GOfreq[1][g],GOfreq[2][g],numAligPairs[g]);
-		printf " ExactComb (%g %g) = %g",Exact_MU,Exact_A,exp(Exact_MU-Exact_A);fflush("")
+		printf " ExactComb (%d %d %d) = %g",GOfreq[1][g],GOfreq[2][g],numAligPairs[g],exp(Exact_MU-Exact_A);fflush("")
 	    }
 	    print ""
 	}
