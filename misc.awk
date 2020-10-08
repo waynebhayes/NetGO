@@ -377,7 +377,7 @@ function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
 
 function CountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
-    ASSERT(k>=0);
+    ASSERT(k>=0, k" must be greater than zero in CountGoTermAligs");
     ll=MIN(l1,l2); # lower and upper lambdas
     if(k>ll) return 0;
     if(ll==0)return (k==0?AlignSearchSpace(n1,n2):0);
@@ -400,7 +400,7 @@ function CountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
 # Below is just the logarithmic version of the above to handle much bigger numbers.
 function logCountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
     ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
-    ASSERT(k>=0);
+    ASSERT(k>=0, k" must be greater than zero in logCountGoTermAligs");
     ll=MIN(l1,l2); # lower and upper lambdas
     if(k>ll) return log(0);
     if(ll==0)return (k==0?logAlignSearchSpace(n1,n2):log(0));
@@ -435,8 +435,7 @@ function SpearmanAddSample(name,X,Y) {
 function SpearmanCompute(name, i) {
     ASSERT(name in _Spearman_N, "SpearmanCompute: no such data "name);
     if(name in _SpComputeResult) return _SpComputeResult[name];
-    ASSERT(length(_SpearmanSampleX[name])==length(_SpearmanSampleY[name]),
-	"SpearmanCompute: input arrays are different lengths");
+    ASSERT(length(_SpearmanSampleX[name])==length(_SpearmanSampleY[name]), "SpearmanCompute: input arrays are different lengths");
     # Too hard to do this in awk, just run external spearman program
     _SpCommand = "spearman"
     for(i=1;i<=_Spearman_N[name];i++) print _SpearmanSampleX[name][i],_SpearmanSampleY[name][i] |& _SpCommand;
