@@ -290,6 +290,14 @@ function StatConfidenceInterval(name,conf)
 {
     return StatTDistPtoZ((1-conf)/2, _statN[name] - 1) * sqrt(StatVar(name) / _statN[name]);
 }
+
+function BinomialPMF(p,n,k) { return choose(n,k)*p^k*(1-p)^(n-k)}
+function logBinomialPMF(p,n,k) { return logChoose(n,k)+log(p)*k+log(1-p)*(n-k)}
+function BinomialCDF(p,n,k, i,sum) {sum=0;for(i=k;i<=n;i++) sum+=BinomialPMF(p,n,i); return sum}
+function logBinomialCDF(p,n,k, i,logSum) {logSum=logBinomialPMF(p,n,k);
+    for(i=k+1;i<=n;i++) logSum=LogSumLogs(logSum, logBinomialPMF(p,n,i));
+    return logSum
+}
 function Pearson2T(n,r){if(r==1)return 1e30; else return r*sqrt((n-2)/(1-r^2))}
 # The Poisson1_CDF is 1-CDF, and sums terms smallest to largest; near CDF=1 (ie., 1-CDF=0) it is accurate well below eps_mach.
 function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*Exp(-l)}
