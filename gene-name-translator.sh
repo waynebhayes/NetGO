@@ -1,16 +1,21 @@
 #!/bin/sh
-USAGE="USAGE: $0 species queryType outType [InputFile]
-    Any of them can be regular expressions"
+USAGE="USAGE: $0 [-ID IDENTIFIER_FILE] species queryType outType [InputFile]
+    Any of them (except -ID argument) can be regular expressions"
 die() { echo "$@" >&2;echo "$USAGE">&2; exit 1
 }
 
-DATABASE_DIR=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
-[ -d $DATABASE_DIR ] || die "set DATABASE_DIR in $0"
+case "$1" in
+-ID) SPECIES_FILE="$2"; shift 2;;
+*)
+    DATABASE_DIR=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
+    [ -d $DATABASE_DIR ] || die "set DATABASE_DIR in $0"
 
-InputFile=""
-SPECIES_FILE=`ls $DATABASE_DIR/* | grep -i "$1"`
-[ `echo "$SPECIES_FILE" | wc -l` -eq 1 ] || die "$SPECIES_FILE:
-expecting only one species file, but found the above files. Make your species regexp more strict."
+    InputFile=""
+    SPECIES_FILE=`ls $DATABASE_DIR/* | grep -i "$1"`
+    [ `echo "$SPECIES_FILE" | wc -l` -eq 1 ] || die "$SPECIES_FILE:
+    expecting only one species file, but found the above files. Make your species regexp more strict."
+    ;;
+esac
 [ -f "$SPECIES_FILE" ] || die "cannot find species file '$SPECIES_FILE'"
 qType="$2"
 rType="$3"
