@@ -47,16 +47,24 @@ function atand(x) { return atan(x)/PI*180 }
 
 #Given x, compute ln(1+x), using the Taylor series if necessary
 function AccurateLog1(x,    absX,n,term,sum){
-    return log(1+x); # fuck it
+    #return log(1+x); # fuck it
     absX=ABS(x);
-    if(absX<1e-15) return x; # close to machine eps? it's just x
-    if(absX>1e-6) return log(1+x); # built-in one is very good in this range
+    if(absX<1e-16) return x; # close to machine eps? it's just x
+    if(absX>4e-6) return log(1+x); # built-in one is very good in this range
     ASSERT(x>=-0.5&&x<=1,"AccurateLog1("x") will not converge");
     if(x in _memAccLog1) return _memAccLog1[x];
     sum=0;
     n=1; term=x;
-    while(ABS(term/(ABS(sum)+ABS(term)))>1e-16){sum+=(term); n++; term*=x/n}
-    if(n>_nMaxAccLog1){_nMaxAccLog1=n; printf "AccurateLog: memoize log(1+%.16g)=%.16g, nMax %d\n",x,sum,_nMaxAccLog1 >"/dev/fd/2"}
+    delete _log1Terms;
+    # This first loop is just to get the terms, not actually computing the true sum
+    while(n==1 || ABS(term/sum)>1e-20){sum+=ABS(term); _log1Terms[n++]=term; term*=x/n}
+    # Now sum the terms smallest-to-largest, keeping the two signs separate
+    for(i=n;i>0;i--)if(_log1Terms[i]<0)_log1Terms[-1]+=_log1Terms[i]; else _log1Terms[0]+=_log1Terms[i]
+    sum = _log1Terms[0] + _log1Terms[-1];
+    sum -= sum*sum; # I'm not sure why, but this gives a MUCH better approximation???
+    if(n>_nMaxAccLog1){_nMaxAccLog1=n;
+	#printf "AccurateLog: memoize log(1+%.16g)=%.16g, nMax %d\n",x,sum,_nMaxAccLog1 >"/dev/fd/2"
+    }
     return (_memAccLog1[x]=sum);
 }
 # Assuming S=a+b, but we only have log(a) and log(b), we want to compute log(S)=log(a+b)=log(a(1+b/a))=log(a)+log(1+b/a)
@@ -65,14 +73,14 @@ function LogSumLogs(log_a,log_b,    truth, approx) {
     m=MIN(log_a,log_b)
     M=MAX(log_a,log_b)
     ASSERT(M>=m,"BUG: M is not greater than m in LogSumLogs");
-    return M+log(1+Exp(m-M))
-    if(M-m > 35) return M; # m < M*machine_eps, so m won't change M.
+    #return M+log(1+Exp(m-M))
+    if(M-m > 37) return M; # m < M*machine_eps, so m won't change M.
     # fuck it
     approx = M+AccurateLog1(Exp(m-M))
     if(ABS(log_a)<700 && ABS(log_b) < 700){
 	truth=log(exp(log_a)+exp(log_b));
 	if(ABS((approx-truth)/truth)>1e-10)
-	    printf "LogSumLogs badApprox: log_a %g log_b %g M %g m %g approx %g\n",log_a,log_b,M,m,approx > "/dev/stderr"
+	    printf "LogSumLogs badApprox: log_a %g log_b %g M %g m %g approx %g truth %g\n",log_a,log_b,M,m,approx,truth > "/dev/stderr"
     }
     return approx
 }
@@ -99,8 +107,8 @@ function logHalfGamma(k){return log(sqrt(PI))+logFact2(k-2)-(k-1)*log(sqrt(2))}
 function Gamma(x)    {if(x==int(x)) return fact(x-1);if(2*x==int(2*x))return HalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
 function logGamma(x) {if(x==int(x)) return logFact(x-1);if(2*x==int(2*x))return logHalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
 function IncGamma(s,x){
-    ASSERT(s==int(s)&&s>=1,"IncGamma: s must be int>=1 for now");
-    if(s==1)return Exp(-x)
+    ASSERT(s==int(s)&&s>=1,"IncGamma(s="s",x="x"): s must be int>=1 for now");
+    if(s<=1)return Exp(-x)
     else return (s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x)
 }
 function logIncGamma(s,x){
@@ -115,6 +123,8 @@ function logIncGamma(s,x){
     }
 }
 
+# Assumes that the N objects should be distributed equally between length(array) bins.
+# NOTE: you need to compute your own Chi2 statistic since passing arrays doesn't work in gawk.
 function Chi2_tail(df,x) {return IncGamma(df/2,x/2)/Gamma(df/2) }
 function logChi2_tail(df,x) {return logIncGamma(df/2,x/2)-logGamma(df/2) }
 
@@ -293,9 +303,16 @@ function StatConfidenceInterval(name,conf)
 
 function BinomialPMF(p,n,k) { return choose(n,k)*p^k*(1-p)^(n-k)}
 function logBinomialPMF(p,n,k) { return logChoose(n,k)+log(p)*k+log(1-p)*(n-k)}
-function BinomialCDF(p,n,k, i,sum) {sum=0;for(i=k;i<=n;i++) sum+=BinomialPMF(p,n,i); return sum}
-function logBinomialCDF(p,n,k, i,logSum) {logSum=logBinomialPMF(p,n,k);
-    for(i=k+1;i<=n;i++) logSum=LogSumLogs(logSum, logBinomialPMF(p,n,i));
+function BinomialCDF(p,n,k, i,sum) {sum=0;
+    # Sum terms smallest to largest, along the shortest path to the endpoints since PMF is symmetric.
+    if(k>=n/2) for(i=n;i>=k;i--) sum+=BinomialPMF(p,n,i);
+    else       for(i=0;i<=k;i++) sum+=BinomialPMF(1-p,n,n-i);
+    return sum
+}
+function logBinomialCDF(p,n,k, i,logSum) {
+    # Sum terms smallest to largest, along the shortest path to the endpoints since PMF is symmetric.
+    if(k>=n/2){logSum=logBinomialPMF(  p,n,k);for(i=n;i> k;i--) logSum=LogSumLogs(logSum, logBinomialPMF(  p,n,i))}
+    else      {logSum=logBinomialPMF(1-p,n,n);for(i=1;i<=k;i++) logSum=LogSumLogs(logSum, logBinomialPMF(1-p,n,n-i))}
     return logSum
 }
 function Pearson2T(n,r){if(r==1)return 1e30; else return r*sqrt((n-2)/(1-r^2))}
