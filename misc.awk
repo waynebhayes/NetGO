@@ -9,6 +9,8 @@ function Srand(){
     srand(srand()+PROCINFO["pid"]) # add process ID
 }
 
+function floor(x) {if(x>=0) return int(x); else return int(x)-1}
+function ceil(x) {if(x==int(x)) return x; else return floor(x)+1}
 function int2binary(i,l, _s){if(i<0)return "nan";_s="";while(i){_s=(i%2)""_s;i=int(i/2)};while(length(_s)<l)_s="0"_s;return _s}
 function Fatal(msg){printf "FATAL ERROR: %s\n",msg >"/dev/stderr"; exit(1);}
 function NormDotProd(u,v,    _dot,_dot1,_dot2,i){_dot=_dot1=_dot2=0;
@@ -85,6 +87,21 @@ function LogSumLogs(log_a,log_b,    truth, approx) {
     return approx
 }
 
+# Given the logarithm of an arbitrarily large or small number, return a string looking
+# like printf "%.Ng" where N is total number of significant digits (just like printf).
+function logPrint(logp,digits,   l10_p,intLog,offset,mantissa,fmt) {
+    if(!digits)digits=6; # same as the default for printf
+    if(ABS(logp)<100) {
+	fmt = sprintf("%%.%dg",digits);
+	return sprintf(fmt, exp(logp));
+    } 
+    else fmt = sprintf("%%.%dge%%+d",digits);
+    l10_p = logp/log(10);
+    if(l10_p<0)offset = floor(l10_p);
+    intLog=int(l10_p-offset)
+    mantissa=10^(l10_p-intLog-offset)
+    return sprintf(fmt, mantissa, intLog+offset);
+}
 function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
 function logFact(k) { if(k in _memLogFact) return _memLogFact[k];
     if(k<=0)return 0; else return (_memLogFact[k]=log(k)+logFact(k-1));
