@@ -1,13 +1,26 @@
 #!/bin/sh
-USAGE="USAGE: $0 [-ID IDENTIFIER_FILE] species queryType outType [InputFile]
-    Any of them (except -ID argument) can be regular expressions"
-die() { echo "$@" >&2;echo "$USAGE">&2; exit 1
-}
+DATABASE_DIR=/home/wayne/extra1/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
+USAGE="PURPOSE: translate between the (bloody annoying) gazillions of naming schemes for genes and proteins,
+by leveraging BiGRID's database of these names.
 
+Do an 'ls' on $DATABASE_DIR for the entire list of species; some examples are
+	`cd $DATABASE_DIR && ls Hom* Sac* Rat* Mus_* D*_mel* A*_th* S*_pombe | fmt -120`
+
+Commonly used types include: ENTREZ_GENE    OFFICIAL_SYMBOL    SWISS-PROT    SYSTEMATIC_NAME    UNIPROT-ACCESSION.
+
+For example, the SANA/networks/HSapiens.el edge list in the SANA repo uses ENTREZ_GENE names; to convert to SWISS-PROT, use:
+
+    gene-name-translator.sh Homo_sapiens ENTREZ_GENE SWISS-PROT SANA-repo/networks/HSapiens.el
+
+USAGE: $0 [-ID IDENTIFIER_FILE] species queryType outType [InputFile]
+    Any of them (except -ID argument) can be regular expressions."
+
+die() { echo "$USAGE">&2; echo "FATAL ERROR:$@" >&2; exit 1
+}
+[ $# -gt 0 ] || die "Expecting at least 3 arguments"
 case "$1" in
 -ID) SPECIES_FILE="$2"; shift 2;;
 *)
-    DATABASE_DIR=/home/wayne/extra2/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
     [ -d $DATABASE_DIR ] || die "set DATABASE_DIR in $0"
 
     InputFile=""
