@@ -140,10 +140,16 @@ function logIncGamma(s,x){
     }
 }
 
-# Assumes that the N objects should be distributed equally between length(array) bins.
-# NOTE: you need to compute your own Chi2 statistic since passing arrays doesn't work in gawk.
-function Chi2_tail(df,x) {return IncGamma(df/2,x/2)/Gamma(df/2) }
-function logChi2_tail(df,x) {return logIncGamma(df/2,x/2)-logGamma(df/2) }
+# Since gawk can't pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
+# is NAME; for a fixed name, the second index is the bins, which are assumed to be equally probable.
+function Chi2_stat(name,   n, bin, X2, avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
+    n=0; for(bin in _Chi2_bins[name])n+=_Chi2_bins[name][bin];
+    avg=n/length(_Chi2_bins[name]);
+    X2=0; for(bin in _Chi2_bins[name]) X2+=(_Chi2_bins[name][bin]-avg)^2/avg;
+    return X2;
+}
+function Chi2_tail(df,x2) {return IncGamma(df/2,x2/2)/Gamma(df/2) }
+function logChi2_tail(df,x2) {return logIncGamma(df/2,x2/2)-logGamma(df/2) }
 
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 function log2(n){return log(n)/log(2)}
