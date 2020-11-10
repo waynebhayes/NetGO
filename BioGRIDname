@@ -1,0 +1,29 @@
+#!/bin/sh
+USAGE="USAGE: $0 [list of names]
+PURPOSE: for each species name (long or short form) given on the command line, output one line with the following info:
+	name-from-command-line	BioGRIDname	list of taxonomic IDs associated with the species
+If the species on the command line is already an integer, don't touch it, and use NONE as the longer name.
+All output columns are tab-separated."
+
+IGNORE_CASE=''
+case "$1" in
+-i) IGNORE_CASE="-i"; shift ;;
+esac
+
+for q
+do
+    if echo "$q" | grep -q '^[0-9]*$'; then # it's an integer already, don't touch it
+	echo "$q	NONE	$q"
+    else
+	(
+	    cd /home/sana/resnik/taxons
+	    Q=`echo "$q" | sed 's/[ 	.]//g' | sed 's/IID//'`
+	    FILE=`ls | grep $IGNORE_CASE "$Q"`
+	    #if [ `echo $FILE | wc -w` -gt 1 ]; then echo "Warning: $q" matches multiple files: $FILE >&2; fi
+	    for f in $FILE; do
+		newlines < $f | awk 'BEGIN{F="'"$f"'";short=substr(F,1,2); printf "%s\t%s",short,F}
+		    {for(i=1;i<=NF;i++)printf "\t%s",$i}END{print ""}'
+	    done
+	)
+    fi
+done
