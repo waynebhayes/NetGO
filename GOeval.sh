@@ -1,32 +1,41 @@
 #!/bin/sh
-USAGE="USAGE: $0 [-f] [-hg] [-com] [-p] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
-
-Notes:
-    - default: for each GO term, print p-values compared to random alignment based on Poisson distribution.
-    - '-f' means: for each GO term, list its freuencies in G1, G2, and the alignment
-    - '-hg' means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
-    - '-com' means: for each GO term, print p-values according to our novel exact Combinatiorial method
-    - '-p' means: for each pair of proteins in the alignment, list the GO terms they share
-    - networks MUST be in edgelist format, with file names that end in '.el'
-    - obo file name MUST end in '.obo'
+USAGE="USAGE: $0 [-eK] [-wK] [-f] [-hg] [-p] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
+PURPOSE: evaluate the functional significance of a network alignment using GO terms.
+Networks MUST be in edgelist format, with file names that end in '.el'; obo file name MUST end in '.obo'.
+Default behavior: for each GO term, print p-values compared to random alignment based on (1) Poisson distribution, and
+    (2) our novel exact Combinatiorial method (see our paper 'Exact p-values for network alignments')
+Note: Errors have a severity from 0 (not severe) to 9 (Fatal). Severity < 9 errors can be converted to warnings, or ignored.
+OPTIONS:
+-eK means: only halt if severity >= K (Default: K=0, ie., halt on all errors)
+-wK means: only warn if severity >= K (Default: K=0, ie., warn on all errors that didn't cause a halt)
+-f means: for each GO term, list its frequencies in G1, G2, as well as the alignment
+-hg means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
+-p means: for each pair of proteins in the alignment, list the GO terms they share
 "
 die() { echo "$USAGE
 FATAL: $@">&2; exit 1
 }
 FREQ=0
 HyperGeo=0
-ExactComb=0
+ExactComb=1
 LIST_PROTEINS=0
+ERRORLEVEL=0
+WARNLEVEL=0
 
 while true; do
     case "$1" in
-    -p) LIST_PROTEINS=1; shift;;
-    -f) FREQ=1; shift;;
-    -hg) HyperGeo=1; shift;;
-    -com) ExactComb=1; shift;;
+    -e*) ERRORLEVEL=`echo $1 | sed 's/^-e//'`;
+	[ "$ERRORLEVEL" -ge 0 -a "$ERRORLEVEL" -le 9 ] || die "ERRORLEVEL must be 0 through 9 inclusive, not '$ERRORLEVEL'";;
+    -w*) WARNLEVEL=`echo $1 | sed 's/^-w//'`;
+	[ "$WARNLEVEL" -ge 0 -a "$WARNLEVEL" -le 9 ] || die "WARNLEVEL must be 0 through 9 inclusive, not '$WARNLEVEL'";;
+    -p) LIST_PROTEINS=1;;
+    -f) FREQ=1;;
+    -hg) HyperGeo=1;;
+    #-com) ExactComb=1;;
     -*) die "unknown option '$1'";;
     *) break ;;
     esac
+    shift
 done
 
 [ $# -ge 7 ] || die "not enough args"
@@ -40,8 +49,9 @@ trap "/bin/rm -rf $TMPDIR" 0 1 2 3 15
 
 hawk '
     BEGIN{OBO_ARGIND=1e30; LIST_PROTEINS='$LIST_PROTEINS'; HyperGeo='$HyperGeo'; ExactComb='$ExactComb';FREQ='$FREQ'}
+    function CHECK(level,cond,str) {if(level>='$ERRORLEVEL')ASSERT(cond,str);else if(level>='$WARNLEVEL')WARN(cond,str)}
     ARGIND==1{ # get tax IDs
-	ASSERT(NF>=3,"tax ID from BioGRIDname line is too short: "$0);
+	CHECK(9,NF>=3,"tax ID from BioGRIDname line is too short: "$0);
 	name[FNR]=$1;for(i=3;i<=NF;i++)tax[FNR][$i]=taxIDs[$i]=tax2net[$i]=FNR
 	next
     }
@@ -134,15 +144,15 @@ hawk '
 	    print "alignment_BEGINFILE",ARGIND,FILENAME
 	    delete numAligPairs
 	}
-	ASSERT(numNets == 2, "Sorry, can only work with 2-network alignfiles at the moment");
-	ASSERT($1 in deg[1], "line "FNR" col1 of alignment contains unkown node "$1);
-	ASSERT($2 in deg[2], "line "FNR" col2 of alignment contains unkown node "$2);
+	CHECK(9,numNets == 2, "Sorry, can only work with 2-network alignfiles at the moment");
+	CHECK(5,$1 in deg[1], "line "FNR" col1 of alignment contains unknown node "$1);
+	CHECK(5,$2 in deg[2], "line "FNR" col2 of alignment contains unknown node "$2);
 	e=0 # entropy
 	p=1 # p-value
-	ASSERT(NF == numNets,"expecting "numNets" columns in alignfile "FILENAME", line "FNR": "$0);
+	CHECK(8,NF == numNets,"expecting "numNets" columns in alignfile "FILENAME", line "FNR": "$0);
 	for(i=1;i<=numNets;i++)if(!($i in pGO[i])) next; # assuming fixed align file, not arbitrary clusters
 	if(LIST_PROTEINS){
-	    ASSERT(NF==2,"oops, LIST_PROTEINS can only currently handle exactly 2 proteins...")
+	    CHECK(8,NF==2,"oops, LIST_PROTEINS can only currently handle exactly 2 proteins...")
 	    printf "%s,%s",$1,$2
 	}
 	for(g in pGO[1][$1])if(g in pGO[2][$2]){
@@ -197,13 +207,13 @@ hawk '
 		# number of pairs that share GO term g, indep of alignment, in prep for hyperGeom
 		hyper_k= numAligPairs[g];
 		hyper_n= n1 #*numAligFiles
-		ASSERT((g in GOfreq[1] && g in GOfreq[2]),g " not in one of the networks");
-		ASSERT(GOfreq[1][g]>0,"GOfreq[1]["g"] is "GOfreq[1][g]);
-		ASSERT(GOfreq[2][g]>0,"GOfreq[2]["g"] is "GOfreq[2][g]);
+		CHECK(5,(g in GOfreq[1] && g in GOfreq[2]),g " not in one of the networks");
+		CHECK(5,GOfreq[1][g]>0,"GOfreq[1]["g"] is "GOfreq[1][g]);
+		CHECK(5,GOfreq[2][g]>0,"GOfreq[2]["g"] is "GOfreq[2][g]);
 		l1=MIN(GOfreq[1][g], GOfreq[2][g]);
 		l2=MAX(GOfreq[1][g], GOfreq[2][g]);
-		ASSERT(l1>0,"l1");
-		ASSERT(l2>0,"l2");
+		CHECK(5,l1>0,"l1");
+		CHECK(5,l2>0,"l2");
 		hyper_K= l1*l2 - l1*(l1-1)/2 #*numAligFiles
 		hyper_N= n1*n2 - n1*(n1-1)/2 #*numAligFiles
 		printf " HyperGeom( %d %d %d %d )=",g,hyper_k,hyper_n,hyper_K,hyper_N;fflush("")

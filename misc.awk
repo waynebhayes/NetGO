@@ -177,6 +177,7 @@ function dtob(n,   s,sgn) {n=1*n;if(!n)return "0";s=sgn="";if(n<0){sgn="-";n=-n}
 function btod(n) {}
 
 function ASSERT(cond,str){if(!cond){s=sprintf("assertion failure: %s", str); print s >"/dev/stderr"; exit 1}}
+function WARN(cond,str){if(!cond){s=sprintf("WARNING: %s", str); print s >"/dev/stderr"}}
 function ABS(x){return x<0?-x:x}
 function SIGN(x){return x==0?0:x/ABS(x)}
 function MAX(x,y){return x>y?x:y}
