@@ -79,7 +79,7 @@ awk -F"$TAB" '
 			outCols[col]=outCols[col]NAMES[b][t]
 		    }
 	    }
-	    if(!(col in outCols)) outCols[col]=sprintf("NO_MATCH(%s)",qName)
+	    if(!(col in outCols)) outCols[col]=sprintf("NO_MATCH_%s",qName)
 	}
 	if(NF>1){
 	    printf "%s",outCols[1]
