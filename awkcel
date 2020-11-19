@@ -10,6 +10,12 @@ die() { echo "$@" >&2; exit 1
 newlines() { awk '{for(i=1; i<=NF; i++) print $i}' "$@"
 }
 
+case `uname` in
+Darwin) GSED=gsed;; # we need a sed that takes the "nu" option
+Linux)GSED=sed;;
+*)GSED=sed;; # fingers crossed...
+esac
+
 EXEDIR="`dirname $0`"
 FIELD_SEP='	'
 QUIET=0
@@ -41,7 +47,7 @@ do
     # Automatically create awk code to assign the appropriate variables from the header.  This is tricky if the input is a pipe:
     # we need to avoid eating *anything* other than the header; thus the weird "sed -nu" command, which removes leading
     # comment lines, prints the header line for the later pipe, and leaves the rest of the input untouched.
-    (echo "if(ARGIND==$argi){"; sed -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
+    (echo "if(ARGIND==$argi){"; $GSED -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
     (echo "if(ARGIND==$argi){"; cat $TMPDIR/varNames.$argi | awk '{printf "colName[%d]=\"%s\";varCol[\"%s\"]=%d\n",NR,$1,$1,NR}'; echo '}') >> $TMPDIR/VARCOLS
 done
 if [ "$VERBOSE" -eq 1 ]; then
