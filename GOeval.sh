@@ -10,7 +10,9 @@ OPTIONS:
 -wK means: only warn if severity >= K (Default: K=0, ie., warn on all errors that didn't cause a halt)
 -f means: for each GO term, list its frequencies in G1, G2, as well as the alignment
 -hg means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
--p means: for each pair of proteins in the alignment, list the GO terms they share
+-pK means: for each pair of proteins in the alignment, list their GO terms based on the value of K:
+    K=s means print only those GO terms SHARED by the two proteins
+    K=a (all) means, in addition to the above, print the GO terms of protein 1, and then the GO terms of protein 2
 "
 die() { echo "$USAGE
 FATAL: $@">&2; exit 1
@@ -28,10 +30,14 @@ while true; do
 	[ "$ERRORLEVEL" -ge 0 -a "$ERRORLEVEL" -le 9 ] || die "ERRORLEVEL must be 0 through 9 inclusive, not '$ERRORLEVEL'";;
     -w*) WARNLEVEL=`echo $1 | sed 's/^-w//'`;
 	[ "$WARNLEVEL" -ge 0 -a "$WARNLEVEL" -le 9 ] || die "WARNLEVEL must be 0 through 9 inclusive, not '$WARNLEVEL'";;
-    -p) LIST_PROTEINS=1;;
+    -p*) case "$1" in
+	    -p|-ps) LIST_PROTEINS=1;;
+	    -pa) LIST_PROTEINS=2;;
+	    *) die "Unknown option '$1'";;
+	esac
+	;;
     -f) FREQ=1;;
     -hg) HyperGeo=1;;
-    #-com) ExactComb=1;;
     -*) die "unknown option '$1'";;
     *) break ;;
     esac
@@ -153,16 +159,25 @@ hawk '
 	for(i=1;i<=numNets;i++)if(!($i in pGO[i])) next; # assuming fixed align file, not arbitrary clusters
 	if(LIST_PROTEINS){
 	    CHECK(8,NF==2,"oops, LIST_PROTEINS can only currently handle exactly 2 proteins...")
-	    printf "%s,%s",$1,$2
+	    printf "%s,%s\t",$1,$2; GOlist="";
 	}
-	for(g in pGO[1][$1])if(g in pGO[2][$2]){
-	    if(LIST_PROTEINS) printf "\t%s",g
-	    pg=GOfreq[1][g]*GOfreq[2][g]/length(deg[1])/length(deg[2])
-	    p*=pg
-	    e+=-pg*log(pg)
-	    ++numAligPairs[g]
+	for(g in pGO[1][$1]){
+	    if(g in pGO[2][$2]){
+		if(LIST_PROTEINS)GOlist = GOlist sprintf("%s,",g);
+		pg=GOfreq[1][g]*GOfreq[2][g]/length(deg[1])/length(deg[2])
+		p*=pg
+		e+=-pg*log(pg)
+		++numAligPairs[g]
+	    }
 	}
-	if(LIST_PROTEINS) print ""
+	if(LIST_PROTEINS){
+	    if(LIST_PROTEINS == 2) {
+		GOlist = GOlist "\t"; for(g in pGO[1][$1]) GOlist=GOlist sprintf("%s,",g);
+		GOlist = GOlist "\t"; for(g in pGO[2][$2]) GOlist=GOlist sprintf("%s,",g);
+	    }
+	    gsub(",\t","\t",GOlist); gsub(",$","",GOlist); # get rid of trailing commas
+	    print GOlist; # could be empty if LIST_PROTEINS < 2, and print with a newline regardless
+	}
     }
 
     {_BEGINFILE=0} # first line of any file turns it off
