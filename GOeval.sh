@@ -1,9 +1,10 @@
 #!/bin/sh
-USAGE="USAGE: $0 [-eK] [-wK] [-f] [-hg] [-p] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
+USAGE="USAGE: $0 [-eK] [-wK] [-f] [-hg] [-pK] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
 PURPOSE: evaluate the functional significance of a network alignment using GO terms.
 Networks MUST be in edgelist format, with file names that end in '.el'; obo file name MUST end in '.obo'.
 Default behavior: for each GO term, print p-values compared to random alignment based on (1) Poisson distribution, and
     (2) our novel exact Combinatiorial method (see our paper 'Exact p-values for network alignments')
+speciesN: use our (admittedly odd) abbreviations, eg HS for HSapiens, RN for RNorvegicus, etc.
 Note: Errors have a severity from 0 (not severe) to 9 (Fatal). Severity < 9 errors can be converted to warnings, or ignored.
 OPTIONS:
 -eK means: only halt if severity >= K (Default: K=0, ie., halt on all errors)
@@ -17,6 +18,8 @@ OPTIONS:
 die() { echo "$USAGE
 FATAL: $@">&2; exit 1
 }
+PATH="`dirname "$0"`:$PATH"
+export PATH
 FREQ=0
 HyperGeo=0
 ExactComb=1
