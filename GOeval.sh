@@ -15,9 +15,19 @@ OPTIONS:
     K=s means print only those GO terms SHARED by the two proteins
     K=a (all) means, in addition to the above, print the GO terms of protein 1, and then the GO terms of protein 2
 "
-die() { echo "$USAGE
-FATAL: $@">&2; exit 1
-}
+
+# Functions
+die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
+warn(){ (echo "WARNING: $@")>&2; }
+not(){ if eval "$@"; then return 1; else return 0; fi; }
+newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
+parse(){ awk "BEGIN{print $@}" </dev/null; }
+
+# Temporary Filename + Directory (both, you can use either, note they'll have different random stuff in the XXXXXX part)
+TMP=`mktemp /tmp/$BASENAME.XXXXXX`
+TMPDIR=`mktemp -d /tmp/$BASENAME.XXXXXX`
+trap "/bin/rm -rf $TMP $TMPDIR; exit" 0 1 2 3 15 # call trap "" N to remove the trap for signal N
+
 PATH="`dirname "$0"`:$PATH"
 export PATH
 FREQ=0
@@ -52,8 +62,6 @@ s1=$1
 s2=$2
 shift 2
 
-TMPDIR=`mktemp -d`
-trap "/bin/rm -rf $TMPDIR" 0 1 2 3 15
 ( BioGRIDname $s1; BioGRIDname $s2) > $TMPDIR/names.txt
 
 hawk '

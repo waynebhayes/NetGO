@@ -5,6 +5,12 @@ PURPOSE: for each species name (long or short form) given on the command line, o
 If the species on the command line is already an integer, don't touch it, and use NONE as the longer name.
 All output columns are tab-separated."
 
+die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
+warn(){ (echo "WARNING: $@")>&2; }
+not(){ if eval "$@"; then return 1; else return 0; fi; }
+newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
+parse(){ awk "BEGIN{print $@}" </dev/null; }
+
 IGNORE_CASE=''
 case "$1" in
 -i) IGNORE_CASE="-i"; shift ;;
