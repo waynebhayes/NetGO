@@ -1,14 +1,34 @@
 #!/bin/sh
 # hawk = Hayes awk, by Wayne Hayes (whayes@uci.edu)
+
+# Functions
+die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
+warn(){ (echo "WARNING: $@")>&2; }
+not(){ if eval "$@"; then return 1; else return 0; fi; }
+newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
+parse(){ awk "BEGIN{print $@}" </dev/null; }
+
+# generally useful Variables
+NL='
+'
+TAB='	'
+
+# Temporary Filename + Directory (both, you can use either, note they'll have different random stuff in the XXXXXX part)
+TMP=`mktemp /tmp/hawk.XXXXXX`
+trap "/bin/rm -rf $TMP; exit" 0 1 2 3 15 # call trap "" N to remove the trap for signal N
+
 DIR="`dirname $0`"
-TABS=false
+TAB_CHAR=" " # space
 if [ "$1" = -T ]; then
-    TABS=true; shift
+    TAB_CHAR="$TAB"; shift
 fi
 PROG="$1"
 shift
-if $TABS; then
-    exec gawk -F '	' "`cat "$DIR/misc.awk"`$PROG" "$@"
+
+echo "`cat "$DIR/misc.awk"`$PROG" > $TMP
+
+if gawk -F "$TAB_CHAR" -f "$TMP" "$@"; then :
 else
-    exec gawk "`cat "$DIR/misc.awk"`$PROG" "$@"
+    trap "" 0 1 2 3 15 # do not remove file
+    echo "gawk program file is in $TMP" >&2
 fi
