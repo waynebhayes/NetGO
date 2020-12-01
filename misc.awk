@@ -148,8 +148,8 @@ function Chi2_stat(name,   n, bin, X2, avg) { ASSERT(name in _Chi2_bins && isarr
     X2=0; for(bin in _Chi2_bins[name]) X2+=(_Chi2_bins[name][bin]-avg)^2/avg;
     return X2;
 }
-function Chi2_tail(df,x2) {return IncGamma(df/2,x2/2)/Gamma(df/2) }
-function logChi2_tail(df,x2) {return logIncGamma(df/2,x2/2)-logGamma(df/2) }
+function Chi2_tail(name, df,x2) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return IncGamma(df/2,x2/2)/Gamma(df/2) }
+function logChi2_tail(name) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return logIncGamma(df/2,x2/2)-logGamma(df/2) }
 
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 function log2(n){return log(n)/log(2)}
