@@ -132,24 +132,25 @@ function logIncGamma(s,x){
     ASSERT(s==int(s)&&s>=1,"logIncGamma: s must be int>=1 for now");
     if(s==1)return -x;
     else {
+	ASSERT(x>0,"logIncGamma: x=" x " must be > 0");
 	log_a = log(s-1)+logIncGamma(s-1,x)
 	log_c = (s-1)*log(x)-x
-	if(log_a - log_c < -723) return log_a
+	if(log_a - log_c < -700) return log_a
 	else if(log_a - log_c > 700) return log_c
-	else return log((s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x))
+	else return LogSumLogs(log(s-1)+logIncGamma(s-1,x), (s-1)*log(x)-x)
     }
 }
 
 # Since gawk can't pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
 # is NAME; for a fixed name, the second index is the bins, which are assumed to be equally probable.
 function Chi2_stat(name,   n, bin, X2, avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
-    n=0; for(bin in _Chi2_bins[name])n+=_Chi2_bins[name][bin];
-    avg=n/length(_Chi2_bins[name]);
+    _Chi2_n[name]; for(bin in _Chi2_bins[name])_Chi2_n[name]+=_Chi2_bins[name][bin];
+    avg=_Chi2_n[name]/length(_Chi2_bins[name]);
     X2=0; for(bin in _Chi2_bins[name]) X2+=(_Chi2_bins[name][bin]-avg)^2/avg;
     return X2;
 }
-function Chi2_tail(name, df,x2) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return IncGamma(df/2,x2/2)/Gamma(df/2) }
-function logChi2_tail(name) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return logIncGamma(df/2,x2/2)-logGamma(df/2) }
+function Chi2_tail(name, df,x2) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return IncGamma(int(df/2),x2/2)/Gamma(df/2) }
+function logChi2_tail(name, df2,x2) {df2=int(length(_Chi2_bins[name])/2); x2=Chi2_stat(name); return logIncGamma(df2,x2/2)-logGamma(df2)}
 
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 function log2(n){return log(n)/log(2)}
