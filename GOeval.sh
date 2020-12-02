@@ -12,9 +12,8 @@ OPTIONS:
 -f means: for each GO term, list its frequencies in G1, G2, as well as the alignment
 -hg means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
 -pK means: for each pair of proteins in the alignment, list their GO terms based on the value of K:
-    K=s means print only those GO terms SHARED by the two proteins
-    K=a (all) means, in addition to the above, print the GO terms of protein 1, and then the GO terms of protein 2
-"
+    K=s (shared) means print comma-separated list of GO terms SHARED by the two proteins
+    K=a (all) means print the above shared list, a tab, then GO terms of protein 1, a tab, then GO terms of protein 2."
 
 # Functions
 die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
@@ -57,7 +56,7 @@ while true; do
     shift
 done
 
-[ $# -ge 7 ] || die "not enough args"
+[ $# -ge 7 ] || die "too few args"
 s1=$1
 s2=$2
 shift 2
@@ -69,7 +68,9 @@ hawk '
     function CHECK(level,cond,str) {if(level>='$ERRORLEVEL')ASSERT(cond,str);else if(level>='$WARNLEVEL')WARN(cond,str)}
     ARGIND==1{ # get tax IDs
 	CHECK(9,NF>=3,"tax ID from BioGRIDname line is too short: "$0);
-	name[FNR]=$1;for(i=3;i<=NF;i++)tax[FNR][$i]=taxIDs[$i]=tax2net[$i]=FNR
+	name[FNR]=$1; #printf "name[%d]=%s[%s]", FNR, $1,$2
+	for(i=3;i<=NF;i++){++tax2net[$i][FNR]; #printf "\t%d",$i
+	}
 	next
     }
     index(FILENAME,".el")+2==length(FILENAME) { # network files
@@ -104,6 +105,7 @@ hawk '
 	numNets = length(deg);
 	OBO_ARGIND = ARGIND
 	# Post-process the OBO file:
+	#print "Finished parsing OBO file; numNets is",numNets,"OBO_ARGIND is",OBO_ARGIND
 	for(g in OBO_ID) if(!OBO_Ob[g]) # if not obsolete
 	    OBOtraceRoot(g,g)
     }}
@@ -111,14 +113,17 @@ hawk '
 
 
     ############################# START READING GENE2GO FILE ######################
-    ARGIND==OBO_ARGIND+1 && !/^#/ && ($1 in taxIDs)&&($2 in nodes) {
+    ARGIND==OBO_ARGIND+1 && !/^#/ && ($1 in tax2net)&&($2 in nodes) {
     # Read the gene2go file
-	net=tax2net[$1]; p=$2; g=$3;
-	# Ensure all of the following are set to 1
-	pGO[net][p][g] = GOp[net][g][p] = GOobserved[net][g] = allGO[g] = 1
+	p=$2; g=$3; # Ensure all of the following are set to 1
+	for(net in tax2net[$1]){
+	    pGO[net][p][g] = GOp[net][g][p] = GOobserved[net][g] = allGO[g] = 1
+	    #printf "pGO[%d][%s][%s]=1\n",net,p,g
+	}
 	next
     }
     ENDFILE{ if(ARGIND==OBO_ARGIND+1) {
+	#print "Finished parsing gene2go file"
 	# process GOfreqs of the ancestors of the ones observed in the gene2go file
 	for(net in GOobserved) {
 	    for(g in GOobserved[net]) { # for every GO term that annotates SOME protein in this network...
@@ -192,7 +197,7 @@ hawk '
     }
 
     {_BEGINFILE=0} # first line of any file turns it off
-    BEGINFILE{printf "*** %s ***\n", FILENAME;_BEGINFILE=1}
+    BEGINFILE{printf "*** ARGIND %d FILENAME %s ***\n", ARGIND, FILENAME;_BEGINFILE=1}
 
     # Poisson measure:
     # For any given protein in network G, the probability it is annotated with GO term g is GOfreq[G][g]/n.

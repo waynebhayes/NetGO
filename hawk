@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # hawk = Hayes awk, by Wayne Hayes (whayes@uci.edu)
 
 # Functions
