@@ -13,6 +13,7 @@ function floor(x) {if(x>=0) return int(x); else return int(x)-1}
 function ceil(x) {if(x==int(x)) return x; else return floor(x)+1}
 function int2binary(i,l, _s){if(i<0)return "nan";_s="";while(i){_s=(i%2)""_s;i=int(i/2)};while(length(_s)<l)_s="0"_s;return _s}
 function Fatal(msg){printf "FATAL ERROR: %s\n",msg >"/dev/stderr"; exit(1);}
+function Warn(msg){printf "Warning: %s\n",msg >"/dev/stderr"}
 function NormDotProd(u,v,    _dot,_dot1,_dot2,i){_dot=_dot1=_dot2=0;
     for(i in u){_dot+=u[i]*v[i];_dot1+=u[i]*u[i];_dot2+=v[i]*v[i]};
     return _dot/sqrt(_dot1*_dot2);
