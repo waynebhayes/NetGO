@@ -23,6 +23,9 @@ warn(){ (echo "WARNING: $@")>&2; }
 not(){ if eval "$@"; then return 1; else return 0; fi; }
 newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
 parse(){ awk "BEGIN{print $@}" </dev/null; }
+
+[ $# -eq 0 ] && die "Expecting arguments"
+
 # generally useful Variables
 NL='
 '
@@ -48,20 +51,20 @@ FIELD_SEP='	'
 QUIET=0
 touch $TMPDIR/prePROG
 VERBOSE=0
-HEADER=0
 while [ $# -gt 0 ]; do
     case "$1" in
     -F) echo "$2" | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift 2;;
     -f) cat "$2"  | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift 2;;
     -q) QUIET=1; shift ;;
     -v) VERBOSE=1; shift ;;
-    -h) HEADER=1; shift ;;
-    -*) die "unknown option '$1'" ;;
-    *) [ -e "$1" ] && break; # assume first filename (or named pipe or whatever) ends all programs
+    -?*) die "unknown option '$1'" ;;
+    *) [ ".$1" = ".-" -o -e "$1" ] && break; # assume first filename (or named pipe or whatever) ends all programs
 	echo "$1" | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift ;;
     esac
 done
 
+
+# At this point all that's left is input TSV files.
 argi=0
 touch $TMPDIR/ASSIGN $TMPDIR/VARCOLS
 for i
@@ -70,8 +73,11 @@ do
     # Automatically create awk code to assign the appropriate variables from the header.  This is tricky if the input is a pipe:
     # we need to avoid eating *anything* other than the header; thus the weird "sed -nu" command, which removes leading
     # comment lines, prints the header line for the later pipe, and leaves the rest of the input untouched.
-    (echo "if(ARGIND==$argi){"; $GSED -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
-    (echo "if(ARGIND==$argi){"; cat $TMPDIR/varNames.$argi | awk '{printf "colName[%d]=\"%s\";varCol[\"%s\"]=%d\n",NR,$1,$1,NR}'; echo '}') >> $TMPDIR/VARCOLS
+    (echo 'if(ARGIND=='$argi'){if(FNR==0)next'; $GSED -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | awk '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
+    # In the following, the FNR and FILENAME check is because when the TSV is on stdin, the header line is *gone* and the
+    # first line is actual data; otherwise the input is a real file and we *see* the header line--so we should skip it by
+    # initializing FNR=-1 so the header becomes line 0.
+    (echo 'if(ARGIND=='$argi'){if(FILENAME!="-"){--NR;FNR=-1}'; cat $TMPDIR/varNames.$argi | awk '{printf "colName[%d]=\"%s\";varCol[\"%s\"]=%d;%s=\"%s\"\n",NR,$1,$1,NR,$1,$1}END{printf "NumCols[ARGIND]=%d\n",NR}'; echo '}') >> $TMPDIR/VARCOLS
 done
 if [ "$VERBOSE" -eq 1 ]; then
     cat "$TMPDIR/ASSIGN" >&2
@@ -86,7 +92,6 @@ fi
     # never mind, do not remove comments because sometimes a hash is on the line and it is too hard to figure out
     # {gsub("#.*","")} # do not remove comments (see above)
     /^$/{next}
-    _awkcelStarted[ARGIND]&&!seenHeader[ARGIND]{header=$0;NumCols[ARGIND]=NF;seenHeader[ARGIND]=1;if('"$HEADER"')print;next}
     NF!=NumCols[ARGIND]&&'$QUIET'==0{
 	Warn(sprintf("awkcel: expected %d columns at %s:%d but found %d", NumCols[ARGIND], FILENAME, FNR, NF));
     }
@@ -108,7 +113,7 @@ else
     else # kill -l has the format of space-separated "HUP INT QUIT", etc...
 	kill -l | newlines | grep -v IOT | nl   # but note IOT is a duplicate of TRAP--both are signal 6
     fi | head -20 | egrep -i "$IGNORE" | awk '128+$1=='"$STATUS{good=1}END{exit !good}" && exit 0
-    echo "gawk failed with status $STATUS program file is in directory $TMPDIR" >&2
+    echo "$BASENAME: gawk failed with status $STATUS; program and data are in directory $TMPDIR" >&2
     trap "" 0 1 2 3 15 # do not remove file
     exit $STATUS
 fi
