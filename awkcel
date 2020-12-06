@@ -1,16 +1,42 @@
 #!/bin/sh
-# Input: a file or files with a constant number of columns.  The first line contains the names of the columns.
-# First arg is an awk program that is run on each line, and you can use the names defined in the top line of the input file.
-# File is allowed to contain comments as hashes, they will be ignored
-# All user-assigned variables are remembered between files on the same command-line.
+USAGE="USAGE: $0 [OPTIONS] {awkcel scipt} [ file1.tsv file2.tsv ...]
+PURPOSE: given input file[s] with a constant number of tab-separated columns (called 'TSV' files), the first line
+    contains the names of the columns, and each successive line contains the same number of tab-separated columns
+    containing values. The names of the columns on the first line must be 'awk' l-values (syntactically valid, assignable
+    variable names--ie., matching the regular expression [_A-Za-z][_A-Za-z0-9]*).
+    'awkcel script' is any normal awk script (including given in a file via -f) except it can use the names that are
+    in the header line as if they were normal variables; these variables are re-assigned with each line of the TSV file.
+    Comments are allowed in TSV files only ABOVE the header line, and # must be the FIRST character of the line.
+    All variables are remembered between files given on the same awkcel command-line (though if the same column name
+    appears in a later file it will over-write the variable assigned in a previous TSV file
+OPTIONS:
+    -f PROG_filename: put the awk script in a file--can contain only functions, for example
+	(multiple -f arguments are allowed and are processed in the order given)
+    -F FUNCTIONS_STRING: primarily for defining functions
+    -q: QUIET mode (suppress warnings)
+    -v: VERBOSE
+    -h: print header line"
 
-die() { echo "$@" >&2; exit 1
-}
-newlines() { awk '{for(i=1; i<=NF; i++) print $i}' "$@"
-}
+# Functions
+die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
+warn(){ (echo "WARNING: $@")>&2; }
+not(){ if eval "$@"; then return 1; else return 0; fi; }
+newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
+parse(){ awk "BEGIN{print $@}" </dev/null; }
+# generally useful Variables
 NL='
 '
 TAB='	'
+BASENAME=`basename "$0" .sh`
+[ "$BASENAME" == skel ] && die "$0 is a skeleton Bourne Shell script; your scripts should source it, not run it"
+USAGE=${USAGE:?"$0 should have a USAGE message before sourcing skel.sh"}
+echo "$BASENAME" | grep "[ $TAB]" && die "Shell script names really REALLY shouldn't contain spaces or tabs"
+[ $BASENAME == "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
+
+# Temporary Filename + Directory (both, you can use either, note they'll have different random stuff in the XXXXXX part)
+TMPDIR=`mktemp -d /tmp/$BASENAME.XXXXXX`
+ trap "/bin/rm -rf $TMP $TMPDIR; exit" 0 1 2 3 15 # call trap "" N to remove the trap for signal N
+
 case `uname` in
 Darwin) GSED=gsed;; # we need a sed that takes the "nu" option
 Linux)GSED=sed;;
@@ -20,26 +46,22 @@ esac
 EXEDIR="`dirname $0`"
 FIELD_SEP='	'
 QUIET=0
-PROG=''
+touch $TMPDIR/prePROG
 VERBOSE=0
 HEADER=0
 while [ $# -gt 0 ]; do
     case "$1" in
-    -P) PROG="$PROG;"`cat "$2" | sed 's/ and / \&\& /g'`; shift 2;;
-    -F) FIELD_SEP="$2"; shift 2;;
-    -functions) FUNC="$2"; shift 2;;
+    -F) echo "$2" | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift 2;;
+    -f) cat "$2"  | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift 2;;
     -q) QUIET=1; shift ;;
     -v) VERBOSE=1; shift ;;
     -h) HEADER=1; shift ;;
     -*) die "unknown option '$1'" ;;
     *) [ -e "$1" ] && break; # assume first filename (or named pipe or whatever) ends all programs
-	PROG="$PROG"`echo "$1" | sed 's/ and / \&\& /g'`; shift ;;
+	echo "$1" | sed 's/ and / \&\& /g' >> $TMPDIR/prePROG; shift ;;
     esac
 done
 
-TMPDIR=/tmp/awkcel.$$
- trap "/bin/rm -rf $TMPDIR; exit" 0 1 2 3 15
-mkdir $TMPDIR
 argi=0
 touch $TMPDIR/ASSIGN $TMPDIR/VARCOLS
 for i
@@ -56,7 +78,7 @@ if [ "$VERBOSE" -eq 1 ]; then
     cat "$TMPDIR/VARCOLS" >&2
 fi
 
-(cat $EXEDIR/misc.awk; echo "${FUNC}"; echo '
+(cat $EXEDIR/misc.awk; echo '
     BEGINFILE{'"`cat $TMPDIR/VARCOLS`"'}
     # I am not sure why the next line was signaled as an error; comments before header are easy to ignore.
     /^#/{next}
@@ -70,11 +92,12 @@ fi
     }
     /#/&&'$QUIET'==0{Warn(sprintf("awkcel: comment (#) character not honored on line %d of %s", FNR, FILENAME))}
     !_awkcelStarted[ARGIND]{next}
-    {'"`cat $TMPDIR/ASSIGN`"'}'"$PROG"
-) > $TMPDIR/PROG
+    {'"`cat $TMPDIR/ASSIGN`"'}'
+    cat $TMPDIR/prePROG
+) > $TMPDIR/fullPROG
 
 
-if gawk -F "$FIELD_SEP" -f $TMPDIR/PROG "$@"; then : # do nothing, just exit
+if gawk -F "$FIELD_SEP" -f $TMPDIR/fullPROG "$@"; then : # do nothing, just exit
 else
     STATUS=$?
     # egrep-like regular expression of exit status/signal names to ignore
@@ -85,7 +108,7 @@ else
     else # kill -l has the format of space-separated "HUP INT QUIT", etc...
 	kill -l | newlines | grep -v IOT | nl   # but note IOT is a duplicate of TRAP--both are signal 6
     fi | head -20 | egrep -i "$IGNORE" | awk '128+$1=='"$STATUS{good=1}END{exit !good}" && exit 0
-    echo "gawk failed with status $STATUS program file is in directory $TMPDIR/PROG" >&2
+    echo "gawk failed with status $STATUS program file is in directory $TMPDIR" >&2
     trap "" 0 1 2 3 15 # do not remove file
     exit $STATUS
 fi
