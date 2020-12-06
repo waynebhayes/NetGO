@@ -120,13 +120,14 @@ function logChooseClever(n,k,     r,i) {
     _logChooseMemory[n][k]=r
     return r;
 }
-function HalfGamma(k)   {return sqrt(PI)*fact2(k-2)/2^((k-1)/2)}
+function HalfGamma(k)   {return     sqrt(PI) *   fact2(k-2)/sqrt(2)^(k-1)}
 function logHalfGamma(k){return log(sqrt(PI))+logFact2(k-2)-(k-1)*log(sqrt(2))}
-function Gamma(x)    {if(x==int(x)) return fact(x-1);if(2*x==int(2*x))return HalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
+function Gamma(x)    {if(x==int(x)) return    fact(x-1);if(2*x==int(2*x))return    HalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
 function logGamma(x) {if(x==int(x)) return logFact(x-1);if(2*x==int(2*x))return logHalfGamma(2*x);else ASSERT(0,"Gamma only for integers and half-integers")}
+
 function IncGamma(s,x){
     ASSERT(s==int(s)&&s>=1,"IncGamma(s="s",x="x"): s must be int>=1 for now");
-    if(s<=1)return Exp(-x)
+    if(s==1)return Exp(-x)
     else return (s-1)*IncGamma(s-1,x) + x^(s-1)*Exp(-x)
 }
 function logIncGamma(s,x){
@@ -136,22 +137,24 @@ function logIncGamma(s,x){
 	ASSERT(x>0,"logIncGamma: x=" x " must be > 0");
 	log_a = log(s-1)+logIncGamma(s-1,x)
 	log_c = (s-1)*log(x)-x
-	if(log_a - log_c < -700) return log_a
-	else if(log_a - log_c > 700) return log_c
-	else return LogSumLogs(log(s-1)+logIncGamma(s-1,x), (s-1)*log(x)-x)
+	return LogSumLogs(log_a,log_c)
     }
 }
 
 # Since gawk can't pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
 # is NAME; for a fixed name, the second index is the bins, which are assumed to be equally probable.
 function Chi2_stat(name,   n, bin, X2, avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
-    _Chi2_n[name]; for(bin in _Chi2_bins[name])_Chi2_n[name]+=_Chi2_bins[name][bin];
+    _Chi2_n[name]=0; for(bin in _Chi2_bins[name])_Chi2_n[name]+=_Chi2_bins[name][bin];
     avg=_Chi2_n[name]/length(_Chi2_bins[name]);
     X2=0; for(bin in _Chi2_bins[name]) X2+=(_Chi2_bins[name][bin]-avg)^2/avg;
     return X2;
 }
-function Chi2_tail(name, df,x2) {df=length(_Chi2_bins[name]); x2=Chi2_stat(name); return IncGamma(int(df/2),x2/2)/Gamma(df/2) }
-function logChi2_tail(name, df2,x2) {df2=int(length(_Chi2_bins[name])/2); x2=Chi2_stat(name); return logIncGamma(df2,x2/2)-logGamma(df2)}
+function    Chi2_pair2(df,X2){ASSERT(df%2==0,"Chi2_pair2 df "df" must be even"); return    IncGamma(df/2,X2/2) /  Gamma(df/2)}
+function logChi2_pair2(df,X2){ASSERT(df%2==0,"Chi2_pair2 df "df" must be even"); return logIncGamma(df/2,X2/2)-logGamma(df/2)}
+function    Chi2_pair (df,X2){return df%2==0 ? Chi2_pair2(df,X2) : sqrt(Chi2_pair2(df-1, X2)*Chi2_pair2(df+1,X2))}
+function logChi2_pair (df,X2){return df%2==0 ? logChi2_pair2(df,X2) : (logChi2_pair2(df-1, X2)+logChi2_pair2(df+1,X2))/2}
+function    Chi2_tail(name){return    Chi2_pair(length(_Chi2_bins[name]),Chi2_stat(name))}
+function logChi2_tail(name){return logChi2_pair(length(_Chi2_bins[name]),Chi2_stat(name))}
 
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
 function log2(n){return log(n)/log(2)}
@@ -266,8 +269,8 @@ function NormalPtoZ(quantile,    q,z1,n,d)
     return (quantile > 0.5 ? -z1 : z1);
 }
 function Exp(x){
-    if(x < -723) retun 0;
-    else if(x > 720) return 1e300/1e-300; # evaluates to infinity without division by zero
+    if(x < -745) retun 5e-324
+    else if(x > 707) return 1e307; # evaluates to infinity without division by zero
     else return exp(x);
 }
 function NormalPhi(x,    arg)
