@@ -22,6 +22,10 @@ not(){ if eval "$@"; then return 1; else return 0; fi; }
 newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
 parse(){ awk "BEGIN{print $@}" </dev/null; }
 
+# generally useful Variables
+BASENAME=`basename "$0" .sh`
+[ $BASENAME == "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
+
 # Temporary Filename + Directory (both, you can use either, note they'll have different random stuff in the XXXXXX part)
 TMP=`mktemp /tmp/$BASENAME.XXXXXX`
 TMPDIR=`mktemp -d /tmp/$BASENAME.XXXXXX`
