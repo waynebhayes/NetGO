@@ -21,11 +21,11 @@ hawk '{X=$1;Y=$2;sumX+=X;sumY+=Y;sumXY+=X*Y;sumX2+=X*X;sumY2+=Y*Y}
     # NR = number of samples, rho=Pearson correlation, p=p-value, t = number of standard deviations from random.
     # We seem to be at least 100x too small according to Fisher
     if(p>1)p=1-1/p
-    if(p>1e-30)printf "%d\t%.4g\t%.4g\t%.4g\n", NR, rho, p, t
+    if(p>1e-300)printf "%d\t%.4g\t%.4g\t%.4g\n", NR, rho, p, t
     else { # p-value is getting too small to represent so use logarithm
 	logp = -logPhi(-t)/log(10)
 	logp = logp - 3.6 - (logp/150) # Empirical correction to get in line with Fisher for small p-values
-	printf "%d\t%.4g\t%s\t%.4g\n", NR, rho, logPrint(logp,4), t
+	printf "%d\t%.4g\t%s\t%.4g (using log)\n", NR, rho, logPrint(logp,4), t
 	#p=10^-logp; print "log-over-Fisher", p/F # Sanity check
     }
     }' "$@"
