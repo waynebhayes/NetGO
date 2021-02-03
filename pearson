@@ -4,28 +4,9 @@ case "$1" in
 -[vV]*) VERBOSE=1; shift ;;
 esac
 
-hawk '{X=$1;Y=$2;sumX+=X;sumY+=Y;sumXY+=X*Y;sumX2+=X*X;sumY2+=Y*Y}
+hawk '{PearsonAddSample("", $1, $2)}
     END{
     if('$VERBOSE')printf "%s\t%s\t\t%s\t%s\n", "n", "rho", "p", "t"
     if(NR==0){print "0\t0\t\t1\t0"; exit}
-    numer=sumXY-sumX*sumY/NR;
-    D1=sumX2-sumX*sumX/NR; D2=sumY2-sumY*sumY/NR;
-    denom=sqrt(D1*D2);
-    rho=0; if(denom)rho=numer/denom;
-    t=Pearson2T(NR,rho);
-    if(t<0)t=-t;
-    # Fisher R-to-z
-    z=0.5*log((1+rho)/(1-rho))
-    zse=1/sqrt(NR-3)
-    p=F=2*MIN(NormalDist(0,zse,z),NormalDist(0,zse,-z))
-    # NR = number of samples, rho=Pearson correlation, p=p-value, t = number of standard deviations from random.
-    # We seem to be at least 100x too small according to Fisher
-    if(p>1)p=1-1/p
-    if(p>1e-300)printf "%d\t%.4g\t%.4g\t%.4g\n", NR, rho, p, t
-    else { # p-value is getting too small to represent so use logarithm
-	logp = -logPhi(-t)/log(10)
-	logp = logp - 3.6 - (logp/150) # Empirical correction to get in line with Fisher for small p-values
-	printf "%d\t%.4g\t%s\t%.4g (using log)\n", NR, rho, logPrint(logp,4), t
-	#p=10^-logp; print "log-over-Fisher", p/F # Sanity check
-    }
+    print PearsonPrint("");
     }' "$@"
