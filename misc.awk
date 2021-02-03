@@ -269,7 +269,7 @@ function NormalPtoZ(quantile,    q,z1,n,d)
     return (quantile > 0.5 ? -z1 : z1);
 }
 function Exp(x){
-    if(x < -745) retun 5e-324
+    if(x < -745) return 5e-324
     else if(x > 707) return 1e307; # evaluates to infinity without division by zero
     else return exp(x);
 }
