@@ -529,8 +529,8 @@ function PearsonAddSample(name,X,Y) {
 }
 
 function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
-    if(!_Pearson_N[name])return;
-    if(_PearsonComputeValid[name]) return;
+    if(!_Pearson_N[name])return 0;
+    if(_PearsonComputeValid[name]) return 1;
     numer=_Pearson_sumXY[name]-_Pearson_sumX[name]*_Pearson_sumY[name]/_Pearson_N[name]
     DX=_Pearson_sumX2[name]-_Pearson_sumX[name]*_Pearson_sumX[name]/_Pearson_N[name]
     DY=_Pearson_sumY2[name]-_Pearson_sumY[name]*_Pearson_sumY[name]/_Pearson_N[name]
@@ -545,6 +545,7 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     # We seem to be at least 100x too small according to Fisher
     if(_Pearson_p[name]>1)_Pearson_p[name]=1-1/_Pearson_p[name]
     _PearsonComputeValid[name]=1;
+    return 1
 }
 
 function PearsonPrint(name, logp){
