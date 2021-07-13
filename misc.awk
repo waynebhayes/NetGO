@@ -143,7 +143,7 @@ function logIncGamma(s,x){
 
 # Since gawk can't pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
 # is NAME; for a fixed name, the second index is the bins, which are assumed to be equally probable.
-function Chi2_stat(name,   n, bin, X2, avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
+function Chi2_stat(name,   bin,X2,avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
     _Chi2_n[name]=0; for(bin in _Chi2_bins[name])_Chi2_n[name]+=_Chi2_bins[name][bin];
     avg=_Chi2_n[name]/length(_Chi2_bins[name]);
     X2=0; for(bin in _Chi2_bins[name]) X2+=(_Chi2_bins[name][bin]-avg)^2/avg;
@@ -153,7 +153,8 @@ function    Chi2_pair2(df,X2){ASSERT(df%2==0,"Chi2_pair2 df "df" must be even");
 function logChi2_pair2(df,X2){ASSERT(df%2==0,"Chi2_pair2 df "df" must be even"); return logIncGamma(df/2,X2/2)-logGamma(df/2)}
 function    Chi2_pair (df,X2){return df%2==0 ? Chi2_pair2(df,X2) : sqrt(Chi2_pair2(df-1, X2)*Chi2_pair2(df+1,X2))}
 function logChi2_pair (df,X2){return df%2==0 ? logChi2_pair2(df,X2) : (logChi2_pair2(df-1, X2)+logChi2_pair2(df+1,X2))/2}
-function    Chi2_tail(name){return    Chi2_pair(length(_Chi2_bins[name]),Chi2_stat(name))}
+function Chi2_tail_raw(df, x){return  Chi2_pair(df, x)}
+function    Chi2_tail(name)  {return  Chi2_pair(length(_Chi2_bins[name]),Chi2_stat(name))}
 function logChi2_tail(name){return logChi2_pair(length(_Chi2_bins[name]),Chi2_stat(name))}
 
 function NumBits(n,    b) {b=0;while(n>0){if(n%2==1)b++;n=int(n/2)}; return b}
@@ -506,6 +507,24 @@ function SpearmanCompute(name, i) {
     return _SpComputeResult[name];
 }
 function SpearmanPrint(name) { return SpearmanCompute(name) }
+
+function CovarReset(name) {
+    delete _Covar_sumX[name]
+    delete _Covar_sumY[name]
+    delete _Covar_sumXY[name]
+    delete _Covar_N[name]
+}
+function CovarAddSample(name,X,Y) {
+    _Covar_sumX[name]+=X
+    _Covar_sumY[name]+=Y
+    _Covar_sumXY[name]+=X*Y
+    _Covar_N[name]++;
+}
+
+function CovarCompute(name){
+    ASSERT(1*_Covar_N[name], "CovarCompute requires N>=1 but it is "_Covar_N[name]);
+    return (_Covar_sumXY[name]-_Covar_sumX[name]*_Covar_sumY[name]/_Covar_N[name])/_Covar_N[name];
+}
 
 function PearsonReset(name) {
     delete _Pearson_sumX[name]
