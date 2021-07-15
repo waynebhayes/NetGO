@@ -66,16 +66,16 @@ hawk 'function TransformData(     j) {
     END{
 	m=NR
 	# Compute covariances across all samples of all input variables.
-	for(i=1;i<=m;i++) for(j=1;j<=m;j++)for(k=1;k<=n;k++) CovarAddSample(i" "j, data[i][k], data[j][k]);
+	for(i=1;i<=m;i++) for(j=i+1;j<=m;j++)for(k=1;k<=n;k++) CovarAddSample(i" "j, data[i][k], data[j][k]);
 	# Now perform Empirical Browns Method
 	df_fisher = Expected = 2.0*m;
 	cov_sum = 0;
 	for(i=1;i<=m;i++) { 
 	    #printf "row %4d", i > "/dev/stderr"
-	    for(j=1;j<=m;j++) {
+	    for(j=i+1;j<=m;j++) {
 		covar=CovarCompute(i" "j);
 		#printf " %.5f", covar > "/dev/stderr";
-		if(j>i) cov_sum += covar;
+		cov_sum += covar;
 	    }
 	    #print "" > "/dev/stderr"
 	}
