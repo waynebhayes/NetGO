@@ -69,6 +69,65 @@ shift 2
 
 hawk '
     BEGIN{OBO_ARGIND=1e30; LIST_PROTEINS='$LIST_PROTEINS'; HyperGeo='$HyperGeo'; ExactComb='$ExactComb';FREQ='$FREQ'}
+
+    # Expected number of aligned orthologs in a random alignment of G1 and G2 with n1,n2 nodes and h common ortholog pairs.
+    function ExpectedPairedOrthologs(h,n1,n2, hg,k) {hg=0;for(k=0;k<h;k++)hg+=(h-k)/(n1*n2-k*(n1+n2-k));return hg}
+
+    function logAlignSearchSpace(n1,n2, result){
+	if(n1 in _memLogAligSS && n2 in _memLogAligSS[n1]) return _memLogAligSS[n1][n2];
+	ASSERT(n1>=0&&n2>=0,"AligSearchSpace: (n1,n2)=("n1","n2") cannot be negative");
+	if(n1>n2) result=logAlignSearchSpace(n2,n1); else result = logFact(n2)-logFact(n2-n1);
+	return (_memLogAligSS[n1][n2] = result);
+    }
+    function AlignSearchSpace(n1,n2){return exp(logAlignSearchSpace(n1,n2))}
+
+    function CountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,mu,muMin,muMax) {
+	ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
+	ASSERT(k>=0, k" must be greater than zero in CountGoTermAligs");
+	ll=MIN(l1,l2); # lower and upper lambdas
+	if(k>ll) return 0;
+	if(ll==0)return (k==0?AlignSearchSpace(n1,n2):0);
+	if(l2==n2)return (k==l1?AlignSearchSpace(n1,n2):0);
+	if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
+	    if (k < l1-(n2-l2)) return 0;
+	M=choose(l1,k) * choose(l2,k) * fact(k); # aligning the k matched pairs
+	U=0
+	muMin=MAX(0,(n1-k)-(n2-l2));
+	muMax=MIN(n1-l1,l2-k);
+	for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
+	    AS1=AlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
+	    AS2=AlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
+	    choices = choose(n1-l1,mu) * choose(n2-l2,l1-k)
+	    U += choices * AS1 * AS2
+	}
+	return M * fact(l1-k)*U;
+    }
+
+    # Below is just the logarithmic version of the above to handle much bigger numbers.
+    function logCountGOtermAlignments(n1,n2,l1,l2,k,      ll,M,U,Utmp,mu,muMin,muMax) {
+	ASSERT(n1<=n2, "Sorry, shared probability of GO terms requires n1<=n2");
+	ASSERT(k>=0, k" must be greater than zero in logCountGoTermAligs");
+	ll=MIN(l1,l2); # lower and upper lambdas
+	if(k>ll) return log(0);
+	if(ll==0)return (k==0?logAlignSearchSpace(n1,n2):log(0));
+	if(l2==n2)return (k==l1?logAlignSearchSpace(n1,n2):log(0));
+	if(l1>n2-l2) # There are more annotated pegs than unannotated holes; at least l1-(n2-l2) anopegs *must* match
+	    if (k < l1-(n2-l2)) return log(0);
+	M=logChoose(l1,k) + logChoose(l2,k) + logFact(k);
+	muMin=MAX(0,(n1-k)-(n2-l2));
+	muMax=MIN(n1-l1,l2-k);
+	U=0
+	for(mu=muMin;mu<=muMax;mu++){ # sum over possible values for numAnnotatedPegs aligning to l2-k annotated holes.
+	    # do NOT try any memoization here; too many parameters means not enough repeats -> actually SLOWER
+	    AS1=logAlignSearchSpace(mu,l2-k); # aligning annot. pegs to unannot. holes
+	    AS2=logAlignSearchSpace(n1-l1-mu,n2-l2-(l1-k)); # remaining unannot pegs aligned to unannot holes
+	    Utmp = AS1+AS2 + logChoose(n1-l1,mu)
+	    U=LogSumLogs(U,Utmp);
+	}
+	U += logChoose(n2-l2,l1-k)
+	return  M + logFact(l1-k)+U;
+    }
+
     function CHECK(level,cond,str) {if(level>='$ERRORLEVEL')ASSERT(cond,str);else if(level>='$WARNLEVEL')WARN(cond,str)}
     ARGIND==1{ # get tax IDs
 	CHECK(9,NF>=3,"tax ID from BioGRIDname line is too short: "$0);
