@@ -257,7 +257,7 @@ function StatHistECDF(name,z,  x,prevX,frac,h1,h2) {
     prevX=_statHistMin[name];
     for(x in _statHistCDF[name]){
 	if(1*x>z) {
-	    frac=(z-prevX)/(x-prevX); h2=_statHistCDF[name][x];h1=_statHistCDF[name][prevX];
+	    frac=(z-prevX)/(x-prevX); h1=_statHistCDF[name][prevX]; h2=_statHistCDF[name][x];
 	    return h1 + frac*(h2-h1);
 	}
 	prevX=x;
@@ -519,7 +519,7 @@ function CovarAddSample(name,X,Y) {
 }
 
 function CovarCompute(name){
-    ASSERT(1*_Covar_N[name], "CovarCompute requires N>=1 but it is "_Covar_N[name]);
+    ASSERT(1*_Covar_N[name]>1, "CovarCompute requires N>=1 but it is "_Covar_N[name]);
     return (_Covar_sumXY[name]-_Covar_sumX[name]*_Covar_sumY[name]/_Covar_N[name])/(_Covar_N[name]-1);
 }
 

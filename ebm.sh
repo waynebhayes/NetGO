@@ -43,13 +43,13 @@ done
 
 tail -n +2 "$@" > $TMPDIR/input
 
-hawk 'function TransformData(     j) {
-	for(j=1;j<=NF;j++) {
+hawk 'function TransformData(n,     j) {
+	for(j=1;j<=n;j++) {
 	    data[NR][j] = -2*log(StatHistECDF(NR, data[NR][j]));
 	}
     }
 	NR==1{n=NF-2}
-	{ # every line including NR==1
+	{ # every line including NR==1, because the header line was discarded using tail(1) above.
 	    ASSERT(NF-2==n,"number of columns must be constant; first column had "n" but this one has "NF-2);
 	    name[NR]=$1; pVal[NR]=$2;
 	    for(i=1;i<=n;i++) {
@@ -64,10 +64,11 @@ hawk 'function TransformData(     j) {
 	    #printf "NORM[%d]",NR>"/dev/stderr";for(i=1;i<=n;i++)printf " %g",data[NR][i]>"/dev/stderr";print "">"/dev/stderr";
 	    StatHistMakeCDF(NR);
 	    #printf "ECDF[%d]",NR>"/dev/stderr";for(i=1;i<=n;i++)printf " [%d][%d][%g]=%g",NR,i,data[NR][i],StatHistECDF(NR,data[NR][i])>"/dev/stderr";print "">"/dev/stderr";
-	    TransformData(); # no arguments, it always works on the current line
+	    TransformData(n); # note it always works on the current line (NR)
 	    #printf "-LOG[%d]",NR>"/dev/stderr";for(i=1;i<=n;i++)printf " %g",data[NR][i]>"/dev/stderr";print "">"/dev/stderr";
 	}
     END{
+	#printf "last line has pval[%d]=%g\n", NR,pVal[NR] > "/dev/stderr";
 	m=NR
 	ASSERT(m>0, "need at least one variable");
 	# Compute covariances across all samples of all input variables.
@@ -93,14 +94,13 @@ hawk 'function TransformData(     j) {
 	    c = 1.0
 	}
 	#printf "c = %g\n", c > "/dev/stderr"
-	pProd=1.0;
-	log_pProd=0;
+	pProd=1; log_pProd=0;
 	x=0; # twice the sum of logs of p-values
-	for(i=1;i<=NR;i++)
-	    if(1*pVal[i]==0) Warn(sprintf("skipping p-value 0 at %d",i));
-	    else {
+	for(i=1;i<=m;i++)
+	    if(1*pVal[i]>0) {
 		x += -log(pVal[i]); log_pProd+=log(pVal[i]); pProd *= pVal[i]; #printf "x[%d]=%g\n",i,x
 	    }
+	    else Warn(sprintf("skipping pVal[%d]=%g",i,pVal[i]));
 	x *= 2;
 	#printf("x = %g\n", x) > "/dev/stderr";
 	log_p_brown = logChi2_pair(int(df_brown+0.5), 1.0*x/c)
