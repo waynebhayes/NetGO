@@ -8,8 +8,8 @@ PURPOSE: compute holistic p-value of possibly correlated variates using Empirica
     input: m+1 lines, with n+2 columns each.
     The top line is a "header" line; this line is completely ignored, and can be whatever you want
     Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string); then the p-value; and then the n raw samples of that variable.
-    The Empirical Brown's Method (Poole 2016) computes the covariance of all the variables and spits out a
-    holistic p-value that is <= product of p-values, accounting approximately for inter-dependencies."
+    The Empirical Brown's Method (Poole 2016) computes the covariance of all the variables and spits out a holistic
+    p-value that is >= product of p-values (ie., less significant), accounting approximately for inter-dependencies."
 
 ################## SKELETON: DO NOT TOUCH CODE HERE
 # check that you really did add a usage message above
@@ -29,9 +29,13 @@ TMPDIR=`mktemp -d /tmp/$BASENAME.XXXXXX`
 
 #################### END OF SKELETON, ADD YOUR CODE BELOW THIS LINE
 
+[ $# = 0 ] && isatty && warn "reading stdin from tty; press ^D to finish, or ^C to exit"
+
+VERBOSE=0
 while true; do
     case "$1" in
     -h) die "<printing help message only>" ;;
+    -[Vv]*) VERBOSE=1; shift;;
     -*) die "option '$1' not supported";;
     *) break;;
     esac
@@ -65,6 +69,7 @@ hawk 'function TransformData(     j) {
 	}
     END{
 	m=NR
+	ASSERT(m>0, "need at least one variable");
 	# Compute covariances across all samples of all input variables.
 	for(i=1;i<=m;i++) for(j=i+1;j<=m;j++)for(k=1;k<=n;k++) CovarAddSample(i" "j, data[i][k], data[j][k]);
 	# Now perform Empirical Browns Method
@@ -89,13 +94,21 @@ hawk 'function TransformData(     j) {
 	}
 	#printf "c = %g\n", c > "/dev/stderr"
 	pProd=1.0;
+	log_pProd=0;
 	x=0; # twice the sum of logs of p-values
-	for(i=1;i<=NR;i++) {x += -log(pVal[i]); pProd *= pVal[i]}
+	for(i=1;i<=NR;i++)
+	    if(1*pVal[i]==0) Warn(sprintf("skipping p-value 0 at %d",i));
+	    else {
+		x += -log(pVal[i]); log_pProd+=log(pVal[i]); pProd *= pVal[i]; #printf "x[%d]=%g\n",i,x
+	    }
 	x *= 2;
 	#printf("x = %g\n", x) > "/dev/stderr";
-	p_brown = exp(logChi2_pair(int(df_brown+0.5), 1.0*x/c))
+	log_p_brown = logChi2_pair(int(df_brown+0.5), 1.0*x/c)
+	p_brown = Exp(log_p_brown)
 
 	ASSERT(p_brown >= pProd,
 	    "Oops, something wrong: p_brown should be < product(pVals), but p_brown ="p_brown" product ="pProd);
-	printf("%g %g (2nd is product)\n", p_brown, pProd);
+	if('$VERBOSE') fmt="%g = %g bits; product %g = %g bits\n";
+	else fmt="%g %g %g %g\n";
+	printf(fmt, p_brown, -log_p_brown/log(2), pProd, -log_pProd/log(2));
     }' $TMPDIR/input
