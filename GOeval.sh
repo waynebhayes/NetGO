@@ -1,5 +1,5 @@
 #!/bin/sh
-USAGE="USAGE: $0 [-eK] [-wK] [-f] [-hg] [-pK] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
+USAGE="USAGE: $0 [-eK] [-wK] [-f] [-hg] [-pK] [-ebm] species1 species2 G1.el G2.el OBOfile.obo gene2go [alignFile(s)]
 PURPOSE: evaluate the functional significance of a network alignment using GO terms.
 Networks MUST be in edgelist format, with file names that end in '.el'; obo file name MUST end in '.obo'.
 Default behavior: for each GO term, print p-values compared to random alignment based on (1) Poisson distribution, and
@@ -13,7 +13,8 @@ OPTIONS:
 -hg means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
 -pK means: for each pair of proteins in the alignment, list their GO terms based on the value of K:
     K=s (shared) means print comma-separated list of GO terms SHARED by the two proteins
-    K=a (all) means print the above shared list, a tab, then GO terms of protein 1, a tab, then GO terms of protein 2."
+    K=a (all) means print the above shared list, a tab, then GO terms of protein 1, a tab, then GO terms of protein 2.
+-ebm means: combine the p-values across GO terms using the Empirical Brown's Method."
 
 # Functions
 die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
@@ -39,12 +40,14 @@ ExactComb=1
 LIST_PROTEINS=0
 ERRORLEVEL=0
 WARNLEVEL=0
+EBM=false
 
 while true; do
     case "$1" in
-    -e*) ERRORLEVEL=`echo $1 | sed 's/^-e//'`;
+    -[Ee][Bb][Mm]) EBM=true;;
+    -e[0-9]) ERRORLEVEL=`echo $1 | sed 's/^-e//'`;
 	[ "$ERRORLEVEL" -ge 0 -a "$ERRORLEVEL" -le 9 ] || die "ERRORLEVEL must be 0 through 9 inclusive, not '$ERRORLEVEL'";;
-    -w*) WARNLEVEL=`echo $1 | sed 's/^-w//'`;
+    -w[0-9]) WARNLEVEL=`echo $1 | sed 's/^-w//'`;
 	[ "$WARNLEVEL" -ge 0 -a "$WARNLEVEL" -le 9 ] || die "WARNLEVEL must be 0 through 9 inclusive, not '$WARNLEVEL'";;
     -p*) case "$1" in
 	    -p|-ps) LIST_PROTEINS=1;;
@@ -325,4 +328,9 @@ hawk '
 	}
 	printf "GO total expected Poisson mean is %g, got %d, \n", totalExpected, totalPairs;
 	#printf "log10(p-value) %g\n", Log10Poisson1_CDF(totalExpected,totalPairs);
-    }}' $TMPDIR/names.txt "$@"
+    }}' $TMPDIR/names.txt "$@" | tee $TMPDIR/GOeval.out
+
+if $EBM; then
+    echo "Please wait while we run the Empirical Brown's Method to combine the above p-values... may take some time... " >&2
+    awk '/^GO:/{pV[$1]=$NF}/\tGO:/{n=split($2,a,",");for(i=1;i<=n;i++)GOpair[a[i]][$1]=pair[$1]=1}END{printf "GOterm\tpValue"; for(p in pair)printf "\t%s",p; print ""; for(g in GOpair){printf "%s\t%g",g,pV[g]; for(p in pair)printf "\t%d",1*GOpair[g][p]; print ""}}' $TMPDIR/GOeval.out | ebm
+fi
