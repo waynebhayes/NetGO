@@ -108,7 +108,7 @@ hawk 'function TransformData(n,     j) {
 
 	ASSERT(p_brown >= pProd,
 	    "Oops, something wrong: p_brown should be < product(pVals), but p_brown ="p_brown" product ="pProd);
-	if('$VERBOSE') fmt="%g = %g bits; product %g = %g bits\n";
+	if('$VERBOSE') fmt="p-value < %g = bitscore %g (product gives %g ; bitscore %g )"
 	else fmt="%g %g %g %g\n";
 	printf(fmt, p_brown, -log_p_brown/log(2), pProd, -log_pProd/log(2));
     }' $TMPDIR/input
