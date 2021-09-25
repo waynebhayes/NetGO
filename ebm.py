@@ -20,6 +20,9 @@ Email: william.poole@systemsbiology.org / tknijnen@systemsbiology.org
 Created: June 2015
 """
 
+print("If this code fails (as Python is wont to do), try ebm.sh--which is also about 10-50x faster...")
+print("... and if ebm.sh isn't fast enough, try the compiled C version (another 10x-100x faster) in my libwayne repo")
+
 import sys
 import numpy as np
 from EmpiricalBrownsMethod import *

@@ -5,6 +5,7 @@ BASENAME=`basename "$0" .sh`; TAB='	'; NL='
 #################### ADD YOUR USAGE MESSAGE HERE, and the rest of your code after END OF SKELETON ##################
 USAGE="USAGE: $BASENAME [-h] [data file]
 PURPOSE: compute holistic p-value of possibly correlated variates using Empirical Brown's Method
+NOTE: There is a compiled C version of this code, which runs about 50-100x faster, in my libwayne repo in tests/ebm.c
     input: m+1 lines, with n+2 columns each.
     The top line is a "header" line; this line is completely ignored, and can be whatever you want
     Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string); then the p-value; and then the n raw samples of that variable.
