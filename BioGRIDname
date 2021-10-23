@@ -18,6 +18,7 @@ SANA=${SANA?:"environment variable SANA needs to be set to main SANA repo direct
 IGNORE_CASE=''
 case "$1" in
 -i) IGNORE_CASE="-i"; shift ;;
+-*) die "unknown option '$1'";;
 esac
 
 for q
