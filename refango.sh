@@ -25,7 +25,7 @@ parse(){ awk "BEGIN{print $@}" </dev/null; }
 
 # generally useful Variables
 BASENAME=`basename "$0" .sh`
-[ $BASENAME == "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
+[ $BASENAME = "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
 
 # Temporary Filename + Directory (both, you can use either, note they'll have different random stuff in the XXXXXX part)
 TMP=`mktemp /tmp/$BASENAME.XXXXXX`
