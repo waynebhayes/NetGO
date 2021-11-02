@@ -3,14 +3,21 @@
 BASENAME=`basename "$0" .sh`; TAB='	'; NL='
 '
 #################### ADD YOUR USAGE MESSAGE HERE, and the rest of your code after END OF SKELETON ##################
-USAGE="USAGE: $BASENAME [-h] [data file]
-PURPOSE: compute holistic p-value of possibly correlated variates using Empirical Brown's Method
-NOTE: There is a compiled C version of this code, which runs about 50-100x faster, in my libwayne repo in tests/ebm.c
-    input: m+1 lines, with n+2 columns each.
-    The top line is a "header" line; this line is completely ignored, and can be whatever you want
-    Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string); then the p-value; and then the n raw samples of that variable.
+USAGE="USAGE: $BASENAME [-h] [-v] [data file]
+PURPOSE: compute holistic p-value of possibly correlated variates using Empirical Brown's Method (Poole 2016)
+OPTIONS:
+    -h: print help
+    -v: verbose output
+INPUT:
+    m+1 lines, with n+2 columns each.
+    The top line is a 'header' line; this line is completely ignored, and can be whatever you want
+    Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string);
+	then the p-value; and then the n raw samples of that variable.
     The Empirical Brown's Method (Poole 2016) computes the covariance of all the variables and spits out a holistic
-    p-value that is >= product of p-values (ie., less significant), accounting approximately for inter-dependencies."
+    p-value that is >= product of p-values (ie., less significant), accounting approximately for inter-dependencies.
+NOTE: There is a compiled C version of this code, which runs about 50-100x faster, in my libwayne repo in tests/ebm.c.
+    This script will check to see if a compiled version named 'ebm' is in the PATH, verifies it's correctness if it
+    exists, and quietly runs it if it checks out."
 
 ################## SKELETON: DO NOT TOUCH CODE HERE
 # check that you really did add a usage message above
@@ -41,6 +48,15 @@ while true; do
     *) break;;
     esac
 done
+
+DIRNAME=`dirname "$0"`
+if /bin/which ebm >/dev/null 2>&1 && ebm <"$DIRNAME/ebm.test.in" | cmp - "$DIRNAME/ebm.test.out" >/dev/null 2>&1; then
+    if [ "$EBM_SH_TRYING_EXECUTABLE" = "" ]; then
+	[ "$VERBOSE" -eq 1 ] && echo "exec'ing `/bin/which ebm`" >&2
+	EBM_SH_TRYING_EXECUTABLE=true; export EBM_SH_TRYING_EXECUTABLE
+	exec ebm "$@"
+    fi
+fi
 
 tail -n +2 "$@" > $TMPDIR/input
 
@@ -109,7 +125,7 @@ hawk 'function TransformData(n,     j) {
 
 	ASSERT(p_brown >= pProd,
 	    "Oops, something wrong: p_brown should be < product(pVals), but p_brown ="p_brown" product ="pProd);
-	if('$VERBOSE') fmt="p-value < %g = bitscore %g (product gives %g ; bitscore %g )"
+	if('$VERBOSE') fmt="p-value < %g = bitscore %g (product gives %g ; bitscore %g )\n"
 	else fmt="%g %g %g %g\n";
 	printf(fmt, p_brown, -log_p_brown/log(2), pProd, -log_pProd/log(2));
     }' $TMPDIR/input
