@@ -6,26 +6,26 @@ BASENAME=`basename "$0" .sh`; TAB='	'; NL='
 USAGE="USAGE: $BASENAME [-h] [-v] [data file]
 PURPOSE: compute holistic p-value of possibly correlated variates using Empirical Brown's Method (Poole 2016)
 OPTIONS:
-    -h: print help
-    -v: verbose output
+-h: print help
+-v: verbose output
 INPUT:
-    m+1 lines, with n+2 columns each.
-    The top line is a 'header' line; this line is completely ignored, and can be whatever you want
-    Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string);
-	then the p-value; and then the n raw samples of that variable.
-    The Empirical Brown's Method (Poole 2016) computes the covariance of all the variables and spits out a holistic
-    p-value that is >= product of p-values (ie., less significant), accounting approximately for inter-dependencies.
+m+1 lines, with n+2 columns each.
+The top line is a 'header' line; this line is completely ignored, and can be whatever you want
+Each line represents a variable; the first entry is the 'name' (whatever you want, but must be non-empty string);
+then the p-value; and then the n raw samples of that variable.
+The Empirical Brown's Method (Poole 2016) computes the covariance of all the variables and spits out a holistic
+p-value that is >= product of p-values (ie., less significant), accounting approximately for inter-dependencies.
 NOTE: There is a compiled C version of this code, which runs about 50-100x faster, in my libwayne repo in tests/ebm.c.
-    This script will check to see if a compiled version named 'ebm' is in the PATH, verifies it's correctness if it
-    exists, and quietly runs it if it checks out."
+This script will check to see if a compiled version named 'ebm' is in the PATH, verifies it's correctness if it
+exists, and quietly runs it if it checks out."
 
 ################## SKELETON: DO NOT TOUCH CODE HERE
 # check that you really did add a usage message above
 USAGE=${USAGE:?"$0 should have a USAGE message before sourcing skel.sh"}
 die(){ echo "$USAGE${NL}FATAL ERROR in $BASENAME:" "$@" >&2; exit 1; }
-[ "$BASENAME" == skel ] && die "$0 is a skeleton Bourne Shell script; your scripts should source it, not run it"
+[ "$BASENAME" = skel ] && die "$0 is a skeleton Bourne Shell script; your scripts should source it, not run it"
 echo "$BASENAME" | grep "[ $TAB]" && die "Shell script names really REALLY shouldn't contain spaces or tabs"
-[ $BASENAME == "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
+[ $BASENAME = "$BASENAME" ] || die "something weird with filename in '$BASENAME'"
 warn(){ (echo "WARNING: $@")>&2; }
 not(){ if eval "$@"; then return 1; else return 0; fi; }
 newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
