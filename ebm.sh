@@ -52,7 +52,7 @@ done
 DIRNAME=`dirname "$0"`
 if /bin/which ebm >/dev/null 2>&1 && ebm <"$DIRNAME/ebm.test.in" | cmp - "$DIRNAME/ebm.test.out" >/dev/null 2>&1; then
     if [ "$EBM_SH_TRYING_EXECUTABLE" = "" ]; then
-	[ "$VERBOSE" -eq 1 ] && echo "exec'ing `/bin/which ebm`" >&2
+	[ "$VERBOSE" -ge 0 ] && echo "exec'ing `/bin/which ebm`" >&2
 	EBM_SH_TRYING_EXECUTABLE=true; export EBM_SH_TRYING_EXECUTABLE
 	exec ebm "$@"
     fi
