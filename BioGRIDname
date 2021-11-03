@@ -11,9 +11,8 @@ not(){ if eval "$@"; then return 1; else return 0; fi; }
 newlines(){ awk '{for(i=1; i<=NF;i++)print $i}' "$@"; }
 parse(){ awk "BEGIN{print $@}" </dev/null; }
 
-SANA=$HOME/src/bionets/SANA # Change this to whenever your SANA repo is
-SANA=${SANA?:"environment variable SANA needs to be set to main SANA repo directory"}
-[ -d $SANA ] || die "cannot open SANA repo at <$SANA>"
+SANA_DIR=${SANA_DIR?:"environment variable SANA_DIR needs to be set to main SANA repo directory"}
+[ -d $SANA_DIR ] || die "cannot open SANA_DIR repo at <$SANA_DIR>"
 
 IGNORE_CASE=''
 case "$1" in
@@ -27,7 +26,7 @@ do
 	echo "$q	NONE	$q"
     else
 	(
-	    cd $SANA/resnik/taxons
+	    cd $SANA_DIR/resnik/taxons
 	    Q=`echo "$q" | sed 's/[ 	.]//g' | sed 's/IID//'`
 	    FILE=`ls | grep $IGNORE_CASE "$Q"`
 	    #if [ `echo $FILE | wc -w` -gt 1 ]; then echo "Warning: $q" matches multiple files: $FILE >&2; fi
