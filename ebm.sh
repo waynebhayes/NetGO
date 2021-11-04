@@ -117,7 +117,7 @@ hawk 'function TransformData(n,     j) {
 	    if(1*pVal[i]>0) {
 		x += -log(pVal[i]); log_pProd+=log(pVal[i]); pProd *= pVal[i]; #printf "x[%d]=%g\n",i,x
 	    }
-	    else Warn(sprintf("skipping pVal[%d]=%g",i,pVal[i]));
+	    else if('$VERBOSE') Warn(sprintf("skipping pVal[%d]=%g",i,pVal[i]));
 	x *= 2;
 	#printf("x = %g\n", x) > "/dev/stderr";
 	log_p_brown = logChi2_pair(int(df_brown+0.5), 1.0*x/c)
