@@ -209,6 +209,9 @@ do
 			printf "\t%s (%d GOs { ", u,length(T)
 			for(g in T) printf "%s(%d) ",g,GOfreq[g]
 			printf "} K(%s)=%g)\n",u,K_gset(T)
+		    } else {
+			if(i>0) printf "\t" # no tab before the first protein in the cluster
+			printf "%s %d %g", u, length(T), K_gset(T)
 		    }
 		}
 	    }
@@ -225,7 +228,8 @@ do
 		printf "\t ClusterCommonGOs {"
 		for(g in T)printf " %s",g
 		printf " } K_C=%g\n",K_C
-	    }
+	    } else
+		printf "\t%d %g\n", length(T), K_C
 	    sum+=K_C
 	}
 	return sum
