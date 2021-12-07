@@ -160,7 +160,10 @@ GENE2GO=$1; shift
 
 for i
 do
-    hawk '
+    hawk 'BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
+    #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
+    #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
+
     # Return the "knowledge" (ie., specificity) of a single GO term g.
     function K_g(g){if(g in GOp) return 1/length(GOp[g]); else return 0}
 
@@ -192,9 +195,9 @@ do
 		# and incremently updating the count T[g] if the GO term annotates more than one protein.
 		for(i=0;i<numClusterFields;i++){
 		    u=C[cl][i]
-		    ASSERT(u!="-"&&u!="_"&&u!="NA","INTERNAL ERROR: invalid protein got into K_AC");
+		    ASSERT(u!="-"&&u!="_"&&u!="NA"&&u!="0","INTERNAL ERROR: invalid protein got into K_AC");
 		    if(i==0) { # initialize T to the GO terms of first protein in the cluster:
-			u=C[cl][0];
+			ASSERT(u==C[cl][0],"hmm, i==0 mismatch");
 			++M[u] # multi-set: keep track if protein u occurs more than once.
 			for(g in pGO[u])++T[g];
 		    } else {
@@ -211,7 +214,7 @@ do
 			printf "} K(%s)=%g)\n",u,K_gset(T)
 		    } else {
 			if(i>0) printf "\t" # no tab before the first protein in the cluster
-			printf "%s %d %g", u, length(T), K_gset(T)
+			printf "u=%s #GOs=%d K_gset=%g", u, length(T), K_gset(T)
 		    }
 		}
 	    }
@@ -223,14 +226,17 @@ do
 		else
 		    for(g in T)if(T[g]>1) # g must annotate more than 1 protein to get counted
 			K_C += T[g]*K_g(g)/numClusterFields
+		sum+=K_C
 	    }
-	    if(VERBOSE){
-		printf "\t ClusterCommonGOs {"
-		for(g in T)printf " %s",g
-		printf " } K_C=%g\n",K_C
-	    } else
-		printf "\t%d %g\n", length(T), K_C
-	    sum+=K_C
+
+	    if(numClusterFields>1){
+		if(VERBOSE){
+		    printf "\t ClusterCommonGOs {"
+		    for(g in T)printf " %s",g
+		    printf " } K_C=%g\n",K_C
+		} else
+		    printf "\t#common=%d K_C=%g\n", length(T), K_C
+	    }
 	}
 	return sum
     }
@@ -241,10 +247,6 @@ do
     #Old 2-column alignment files, obsolete but simple to test
     #ARGIND==1{C[$1]=$2; C_[$2]=$1}
     #ARGIND==2{if($2 in C || $2 in C_){++GOfreq[$3];++pGO[$2][$3];++GOp[$3][$2]}}
-
-    BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
-    #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
-    #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
 
     #Clusters version
     # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
@@ -257,7 +259,7 @@ do
 	    R[FNR]=$NF
 	}
 	n=0;
-	for(i=startCol;i<=endCol;i++)if($i!="_"&&$i!="-"&&$i!="NA"){CA[FNR][n++]=$i;++pC[$i][FNR]}
+	for(i=startCol;i<=endCol;i++)if($i!="_"&&$i!="-"&&$i!="NA"&&$i!="0"){CA[FNR][n++]=$i;++pC[$i][FNR]}
     }
 
     # Read the OBO file
