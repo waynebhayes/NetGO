@@ -50,11 +50,12 @@ while true; do
 done
 
 DIRNAME=`dirname "$0"`
-if /bin/which ebm >/dev/null 2>&1 && ebm <"$DIRNAME/ebm.test.in" | cmp - "$DIRNAME/ebm.test.out" >/dev/null 2>&1; then
+EBM_EXE=`(/bin/which ebm || /usr/bin/which ebm) 2>/dev/null | head -1`
+if [ -x "$EBM_EXE" ] && "$EBM_EXE" <"$DIRNAME/ebm.test.in" | cmp - "$DIRNAME/ebm.test.out" >/dev/null 2>&1; then
     if [ "$EBM_SH_TRYING_EXECUTABLE" = "" ]; then
-	[ "$VERBOSE" -ge 0 ] && echo "exec'ing `/bin/which ebm`" >&2
+	[ "$VERBOSE" -ge 0 ] && echo "exec'ing $EBM_EXE" >&2
 	EBM_SH_TRYING_EXECUTABLE=true; export EBM_SH_TRYING_EXECUTABLE
-	exec ebm "$@"
+	exec "$EBM_EXE" "$@"
     fi
 fi
 
