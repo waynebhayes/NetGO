@@ -1,5 +1,12 @@
 BEGIN{PI=M_PI=3.14159265358979324;BIGNUM=1*1e30}
 
+function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
+function WARN(cond,str){if(!cond){s=sprintf("WARNING: line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"}}
+function ABS(x){return x<0?-x:x}
+function SIGN(x){return x==0?0:x/ABS(x)}
+function MAX(x,y){return x>y?x:y}
+function MIN(x,y){return x<y?x:y}
+
 function nul(s){} # do nothing; useful for holding temp strings in code on the command line.
 # The default srand() uses time-of-day, which only changes once per second. Not good enough for paraell runs.
 function Srand(){
@@ -109,7 +116,7 @@ function logFact(k) { if(k in _memLogFact) return _memLogFact[k];
 }
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
-function choose(n,k,     r,i) {ASSERT(0<=k&&k<=n,"choose error"); r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i; return r}
+function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
 function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
     ASSERT(0<=k && k <=n); return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
 }
@@ -182,12 +189,6 @@ function logb(b,x){return log(x)/log(b)}
 function dtob(n,   s,sgn) {n=1*n;if(!n)return "0";s=sgn="";if(n<0){sgn="-";n=-n};while(n){s=sprintf("%d%s",(n%2),s); n=int(n/2)}; return sgn s}
 function btod(n) {}
 
-function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
-function WARN(cond,str){if(!cond){s=sprintf("WARNING: line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"}}
-function ABS(x){return x<0?-x:x}
-function SIGN(x){return x==0?0:x/ABS(x)}
-function MAX(x,y){return x>y?x:y}
-function MIN(x,y){return x<y?x:y}
 function LSPredict(n, x, y, xIn,      SUMx,SUMy,SUMxy,SUMxx,i,slope,y_intercept,x_intercept) {
     SUMx=SUMy=SUMxy=SUMxx=0;
     for(i=0;i<n;i++)
