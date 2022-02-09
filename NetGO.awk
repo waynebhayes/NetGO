@@ -204,16 +204,16 @@ do
 			    for(g in T)if(!(g in pGO[u]))delete T[g] # cumulative set intersection of common GO terms
 			} else {
 			    ASSERT(false, "Lenient broken");
-			    for(g in T)if(g in pGO[u])++T[g]; # cumulative union of common GO terms
+			    for(g in pGO[u])++T[g]; # cumulative union of common GO terms
 			}
 		    }
 		    if(VERBOSE){
-			printf "\t%s (%d GOs { ", u,length(T)
-			for(g in T) printf "%s(%d) ",g,GOfreq[g]
-			printf "} K(%s)=%g)\n",u,K_gset(T)
+			printf "\t%s (%d GOs { ", u,length(pGO[u])
+			for(g in pGO[u]) printf "%s(%d) ",g,GOfreq[g]
+			printf "} K(%s)=%g)\n",u,K_gset(pGO[u])
 		    } else {
 			if(i>0) printf "\t" # no tab before the first protein in the cluster
-			printf "u(%d)=%s #GOs=%d K_gset=%g",i,u, length(T), K_gset(T)
+			printf "u(%d)=%s #GOs=%d K_gset=%g",i,u, length(pGO[u]), K_gset(pGO[u])
 		    }
 		}
 	    }
