@@ -203,7 +203,7 @@ do
 			if(DRACONIAN) {
 			    for(g in T)if(!(g in pGO[u]))delete T[g] # cumulative set intersection of common GO terms
 			} else {
-			    ASSERT(false, "Lenient broken");
+			    #ASSERT(false, "Lenient broken");
 			    for(g in pGO[u])++T[g]; # cumulative union of common GO terms
 			}
 		    }
