@@ -170,7 +170,7 @@ do
     function K_gset(T,	g,sum){sum=0;for(g in T)sum+=K_g(g); return sum}
 
     # Return the "knowledge" level of a protein p, which is just K_gset(T), where T is its sets of GO annotations.
-    function K_p(p,	sum){sum=0;if(p in pGO)return K_gset(pGO[p]); else return 0}
+    function K_p(p){if(p in pGO)return K_gset(pGO[p]); else return 0}
 
     # Knowledge in a simple pairwise alignment in which A[u]=v
     # This function was mostly just used for testing simple cases early on; it is superceded by K_AC below.
@@ -195,12 +195,11 @@ do
 		for(i=0;i<numClusterFields;i++){
 		    u=C[cl][i]
 		    ASSERT(u!="-"&&u!="_"&&u!="NA"&&u!="0","INTERNAL ERROR: invalid protein got into K_AC");
+		    ++M[u] # multi-set: keep track if protein u occurs more than once.
 		    if(i==0) { # initialize T to the GO terms of first protein in the cluster:
 			ASSERT(u==C[cl][0],"hmm, i==0 mismatch");
-			++M[u] # multi-set: keep track if protein u occurs more than once.
 			for(g in pGO[u])++T[g];
 		    } else {
-			++M[u];
 			if(DRACONIAN) {
 			    for(g in T)if(!(g in pGO[u]))delete T[g] # cumulative set intersection of common GO terms
 			} else {
