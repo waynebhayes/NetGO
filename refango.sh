@@ -183,13 +183,13 @@ hawk '
     # Read the gene2go file
 	p=$2; g=$3; # Ensure all of the following are set to 1
 	for(net in tax2net[$1]){
-	    pGO[net][p][g] = GOp[net][g][p] = GOobserved[net][g] = allGO[g] = 1
+	    pGO[net][p][g] = GOp[net][g][p] = GOobserved[net][g] = 1
 	    #printf "pGO[%d][%s][%s]=1\n",net,p,g
 	}
 	next
     }
     ENDFILE{ if(ARGIND==OBO_ARGIND+1) {
-	#print "Finished parsing gene2go file"
+	# print "Finished parsing gene2go file"
 	# process GOfreqs of the ancestors of the ones observed in the gene2go file
 	for(net in GOobserved) {
 	    for(g in GOobserved[net]) { # for every GO term that annotates SOME protein in this network...
@@ -197,7 +197,7 @@ hawk '
 		    for(g1 in OBOancestors[g]){ # for each ancestor GO term...
 			# For all the proteins that g annotates, record the fact that the ancestor g1 also annotates them.
 			for(p in GOp[net][g]){
-			    pGO[net][p][g1] = GOp[net][g1][p] = 1
+			    ++pGO[net][p][g1]; ++GOp[net][g1][p];
 			}
 		    }
 		}
@@ -205,21 +205,8 @@ hawk '
 	}
 	# Now that all proteins have been updated with OBO traces through all GO terms, count GO frequencies.
 	for(net in GOobserved)for(g in GOp[net]) {
+	    allGO[g] = 1;
 	    GOfreq[net][g] = length(GOp[net][g])
-	}
-	if(0)for(net in GOobserved) {
-	    for(g in GOobserved[net]) {
-		GOfreq[net][g]+=GOobserved[net][g] # "+=" since it may be non-zero b/c ancestor of another protein.
-		if(g in OBOancestors) { # there can be old GO terms in gene2go that are not in a newer OBO file
-		    for(g1 in OBOancestors[g]){
-			GOfreq[net][g1] += GOobserved[net][g] # all ancestors get a frequency bump from g.
-			# For all the proteins that g annotates, record the fact that the ancestor g1 also annotates them.
-			for(p in GOp[net][g]){
-			    ++pGO[net][p][g1]; ++GOp[net][g1][p]
-			}
-		    }
-		}
-	    }
 	}
     }}
     ############################# END PROCESSING GENE2GO FILE & ANCESTOR GO TERMS ######################
@@ -245,15 +232,16 @@ hawk '
 	}
 	for(g in pGO[1][$1]){
 	    if(g in pGO[2][$2]){
-		if(LIST_PROTEINS)GOlist = GOlist sprintf("%s,",g);
+		++numAligPairs[g]
+		if(LIST_PROTEINS) GOlist = GOlist sprintf("%s,",g);
 		pg=GOfreq[1][g]*GOfreq[2][g]/length(deg[1])/length(deg[2])
 		p*=pg
 		e+=-pg*log(pg)
-		++numAligPairs[g]
 	    }
 	}
 	if(LIST_PROTEINS){
 	    if(LIST_PROTEINS == 2) {
+		if(!GOlist) GOlist="0"; # there are no shared GO terms
 		GOlist = GOlist "\t"; for(g in pGO[1][$1]) GOlist=GOlist sprintf("%s,",g);
 		GOlist = GOlist "\t"; for(g in pGO[2][$2]) GOlist=GOlist sprintf("%s,",g);
 	    }
@@ -287,18 +275,26 @@ hawk '
 	    printf "Computed logAlignSearchSpace(%d,%d)=%g\n",n1,n2,Exact_A
 	}
 
-	for(g in allGO) if(g in GOfreq[1] && g in GOfreq[2])
+	# Print the header for all GO terms
+	printf "GO_term"
+	if(FREQ) {
+	    printf " GOfreq shared G1 G2", numAligPairs[g], GOfreq[1][g], GOfreq[2][g]
+	}
+	printf " PoissTail( l k )= p-value\n";
+	for(g in allGO)
 	{
+	    if(!(g in GOfreq[1])) GOfreq[1][g]=0;
+	    if(!(g in GOfreq[2])) GOfreq[2][g]=0;
 	    printf "%s", g
 	    if(FREQ) {
-		printf " GOfreq %d %d %d", GOfreq[1][g],GOfreq[2][g],numAligPairs[g]
+		printf " GOfreq %d %d %d", numAligPairs[g], GOfreq[1][g],GOfreq[2][g]
 	    }
 	    expected = GOfreq[1][g]*GOfreq[2][g]/n2 #*numAligFiles;
 	    totalExpected += expected
 	    totalPairs+=numAligPairs[g]
 	    pValuePoisson = Poisson1_CDF(expected,numAligPairs[g]);
 	    if(pValuePoisson == 0 && numAligPairs[g]>expected) pValuePoisson=1e-320 # recover from underflow
-	    printf " PoissonTail( %g %d )= %g", expected, numAligPairs[g], pValuePoisson;
+	    printf " ( %g %d )= %g", expected, numAligPairs[g], pValuePoisson;
 
 	    if(HyperGeo) {
 		# number of pairs that share GO term g, indep of alignment, in prep for hyperGeom
@@ -322,7 +318,7 @@ hawk '
 	    }
 	    if(ExactComb){
 		Exact_MU=logCountGOtermAlignments(n1,n2,GOfreq[1][g],GOfreq[2][g],numAligPairs[g]);
-		printf " ExactComb (%d %d %d) = %g",GOfreq[1][g],GOfreq[2][g],numAligPairs[g],exp(Exact_MU-Exact_A);fflush("")
+		printf " ExactComb (%d %d %d) = %g",GOfreq[1][g],GOfreq[2][g],numAligPairs[g],logPrint(Exact_MU-Exact_A);fflush("")
 	    }
 	    print ""
 	}
