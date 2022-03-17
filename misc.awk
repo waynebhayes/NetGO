@@ -566,21 +566,19 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
 }
 
 function PearsonPrint(name, logp){
-    #if(!_Pearson_N[name])return;
+    #if(!_Pearson_N[name]) return;
     PearsonCompute(name);
-    TINY=0; # use 5e-324 if you ever get the log stuff working
-    if(_Pearson_p[name]>=TINY) return sprintf("%d\t%.4g\t%.4g\t%.4f",
-	_Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
-    else { # p-value is getting too small to represent so use logarithm
-	ASSERT(0, "PearsonPrint: internal error, should not get here");
-	logp = -logPhi(-_Pearson_t[name])/log(10)
-	logp = logp - 3.6 - (logp/150) # Empirical correction to get in line with Fisher for small p-values
-	return sprintf("%d\t%.4g\t%s\t%.4f (using log)", _Pearson_N[name], _Pearson_rho[name], logPrint(logp,4), _Pearson_t[name]);
+    TINY=1e-200; # using the fancy log algorithm if p-value is smaller than this
+    logp = -logPhi(-_Pearson_t[name]); # working with the negative log is easier (so log is positive)
+    if(logp < -log(TINY))
+	return sprintf("%d\t%.4g\t%.4g\t%.4f", _Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
+    else {
+	#printf "t %g p %g log10p %g logp %g", _Pearson_t[name], _Pearson_p[name], logp/log(10), logp > "/dev/stderr"
+	logp = (logp - 8.28931 - logp/65.1442)/0.992 # Empirical correction to get in line with Fisher for small p-values
+	#printf " (logp corrected %g %g)\n", logp/log(10), logp > "/dev/stderr"
+	return sprintf("%d\t%.4g\t%s\t%.4f (using log)", _Pearson_N[name], _Pearson_rho[name], logPrint(-logp,4), _Pearson_t[name]);
 	#p=10^-logp; print "log-over-Fisher", p/F # Sanity check
     }
-
-    # NR = number of samples, rho=Pearson correlation, p=p-value, t = number of standard deviations from random.
-    #return sprintf("%d %.3g %.3g %.3g", _Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
 }
 
 # Functions for computing the AUPR
