@@ -569,13 +569,13 @@ function PearsonPrint(name, logp){
     #if(!_Pearson_N[name])return;
     PearsonCompute(name);
     TINY=0; # use 5e-324 if you ever get the log stuff working
-    if(_Pearson_p[name]>=TINY) return sprintf("%d\t%.4g\t%.4g\t%.4g",
+    if(_Pearson_p[name]>=TINY) return sprintf("%d\t%.4g\t%.4g\t%.4f",
 	_Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
     else { # p-value is getting too small to represent so use logarithm
 	ASSERT(0, "PearsonPrint: internal error, should not get here");
 	logp = -logPhi(-_Pearson_t[name])/log(10)
 	logp = logp - 3.6 - (logp/150) # Empirical correction to get in line with Fisher for small p-values
-	return sprintf("%d\t%.4g\t%s\t%.4g (using log)", _Pearson_N[name], _Pearson_rho[name], logPrint(logp,4), _Pearson_t[name]);
+	return sprintf("%d\t%.4g\t%s\t%.4f (using log)", _Pearson_N[name], _Pearson_rho[name], logPrint(logp,4), _Pearson_t[name]);
 	#p=10^-logp; print "log-over-Fisher", p/F # Sanity check
     }
 
