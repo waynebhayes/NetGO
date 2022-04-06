@@ -16,6 +16,7 @@ function Srand(){
     srand(srand()+PROCINFO["pid"]) # add process ID
 }
 
+function ftos(f){f=sprintf("%.3g",f); gsub("e[+]0","e+",f); return f} # remove leading 0s from exponent
 function floor(x) {if(x>=0) return int(x); else return int(x)-1}
 function ceil(x) {if(x==int(x)) return x; else return floor(x)+1}
 function int2binary(i,l, _s){if(i<0)return "nan";_s="";while(i){_s=(i%2)""_s;i=int(i/2)};while(length(_s)<l)_s="0"_s;return _s}
