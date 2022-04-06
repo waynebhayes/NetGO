@@ -3,7 +3,7 @@
 TMP=/tmp/spearman$$
 trap "/bin/rm -rf $TMP; exit" 0 1 2 3 15
 mkdir -p $TMP
-cat "$@" | nl > $TMP/input # numbering the original input lines
+awk '{print $1,$2}' "$@" | nl > $TMP/input # numbering the original input lines
 # Sort by the two input columns and put rank as last column, then put them back in original order.
 sort --stable -k 2,2g $TMP/input | awk '{print $0,NR}' | sort --stable -k 1,1n >$TMP/rank1 &
 sort --stable -k 3,3g $TMP/input | awk '{print $0,NR}' | sort --stable -k 1,1n >$TMP/rank2

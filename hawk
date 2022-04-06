@@ -27,7 +27,7 @@ shift
 
 echo "`cat "$DIR/misc.awk"`$PROG" > $TMP
 
-AWK=`which gawk | head -1 | sed 's/\*//g'`
+AWK=`(which gawk4 || which gawk) | head -1 | sed 's/\*//g'`
 [ -x "$AWK" ] || AWK=awk
 
 if $AWK -F "$TAB_CHAR" -f "$TMP" "$@"; then : # do nothing, just exit
