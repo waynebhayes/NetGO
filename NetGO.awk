@@ -179,8 +179,8 @@ do
     function K_A2(A,
 	sum,u,v,Tuv){sum=0;for(u in A)if(u in pGO){v=A[u];if(v in pGO){SetIntersect(Tuv,pGO[u],pGO[v]); sum+=K_gset(Tuv)}}; return sum}
 
-	function MNE_new(C,numClusterFields,cl,i,u,g,T,M,P_i,NE,MNE){
-	MNE = 0;
+    function MNE(C,numClusterFields,cl,i,u,g,T,M,P_i,NE,result){
+	result = 0;
 	for(cl=1;cl<=length(C);cl++){
 		P_i = 0;
 	    NE = 0;
@@ -208,10 +208,10 @@ do
 			NE += (P_i * log(P_i))
 		}
 		NE /= log(numClusterFields)
-		MNE += NE
+		result += NE
 	}
-	MNE /= length(C)
-	return MNE
+	result /= length(C)
+	return result
     }
 
     # Knowledge in a general alignment of protein clusters
@@ -378,7 +378,7 @@ do
 	    printf "%s: numPairs %d numP %d sumGO %d GOcorpus %d Rweight(A) %g WeightedResnik %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), Kweight, Resnik/Kweight
 	}
 	else if (ENTROPY) {
-		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), MNE_new(CA)
+		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), MNE(CA)
 	}
 	else {
 	    know=K_AC(CA);
