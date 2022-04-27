@@ -137,6 +137,7 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # Thus the convention is to declare local variables as extra parameters (with extra whitespace or a newline after the
 # true parameter list).
 
+ENTROPY=0
 RESNIK=0
 DRACONIAN=1
 VERBOSE=0
@@ -144,6 +145,7 @@ case "$1" in
 -verbose|-V) VERBOSE=1;shift;;
 esac
 case "$1" in
+-E*) ENTROPY=1; shift;;
 -R*) RESNIK=1; shift;;
 -L*) DRACONIAN=0;shift;;
 -D*) DRACONIAN=1;shift;;
@@ -159,7 +161,7 @@ GENE2GO=$1; shift
 
 for i
 do
-    hawk 'BEGIN{DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
+    hawk 'BEGIN{ENTROPY='$ENTROPY';DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
     #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
     #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
 
@@ -176,6 +178,41 @@ do
     # This function was mostly just used for testing simple cases early on; it is superceded by K_AC below.
     function K_A2(A,
 	sum,u,v,Tuv){sum=0;for(u in A)if(u in pGO){v=A[u];if(v in pGO){SetIntersect(Tuv,pGO[u],pGO[v]); sum+=K_gset(Tuv)}}; return sum}
+
+    function MNE(C,numClusterFields,cl,i,u,g,T,M,P_i,NE,result){
+	result = 0;
+	for(cl=1;cl<=length(C);cl++){
+		P_i = 0;
+	    NE = 0;
+	    if(VERBOSE) printf "Cluster %d numProteins %d\n",cl,length(C[cl])
+	    numClusterFields=length(C[cl]);
+	    delete M; M[0]=1;delete M[0]; # initialize M to empty list; M=set of protein members;
+	    delete T; T[0]=1;delete T[0]; # initialize T to empty list; T=set of GO terms across the cluster;
+		if(numClusterFields>1){ # have to match more than one protein to be interesting (handle duplicates below)
+		# incremently update the count T[g] if the GO term annotates more than one protein.
+		for(i=0;i<numClusterFields;i++){
+		    u=C[cl][i]
+		    ASSERT(u!="-"&&u!="_"&&u!="NA"&&u!="0","INTERNAL ERROR: invalid protein got into K_AC");
+		    ++M[u] # multi-set: keep track if protein u occurs more than once.
+		    if(i==0) { # initialize T to the GO terms of first protein in the cluster:
+			    ASSERT(u==C[cl][0],"hmm, i==0 mismatch");
+			    for(g in pGO[u])++T[g];
+		    } else {
+			    for(g in pGO[u])++T[g]; # cumulative union of common GO terms
+		    }
+	    }
+		}
+		for(g in T) {
+			P_i = T[g] / numClusterFields
+			ASSERT(0<=P_i && P_i <= 1,"P_i not in [0,1]")
+			NE += (P_i * log(P_i))
+		}
+		NE /= log(numClusterFields)
+		result += NE
+	}
+	result /= length(C)
+	return result
+    }
 
     # Knowledge in a general alignment of protein clusters
     # Note technically it would be nice to have a K_C function (knowledge inside a cluster) but AWK makes this hard, so
@@ -339,6 +376,9 @@ do
 		}
 	    }
 	    printf "%s: numPairs %d numP %d sumGO %d GOcorpus %d Rweight(A) %g WeightedResnik %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), Kweight, Resnik/Kweight
+	}
+	else if (ENTROPY) {
+		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), MNE(CA)
 	}
 	else {
 	    know=K_AC(CA);
