@@ -7,7 +7,7 @@
 exeDIR=`dirname "$0"`
 PATH="$exeDIR:$PATH" # needed for "hawk" (Hayes awk)
 
-USAGE="USAGE: $0 [-verbose] [-L|-D|-R] OBOfile.obo gene2goFile alignFile[s]
+USAGE="USAGE: $0 [-verbose] [-L|-D|-MNE|-NWR|-AFS {pairwise-sim-file}] OBOfile.obo gene2goFile alignFile[s]
 
     -D: Draconian: The default scoring method, which insists that a GO term must annotate every
     protein in a cluster for it to count.
@@ -15,10 +15,15 @@ USAGE="USAGE: $0 [-verbose] [-L|-D|-R] OBOfile.obo gene2goFile alignFile[s]
     -L: Lenient (mutually exclusive with Draconian), gives a GO term a weight per-cluster that
     is scaled by the number of proteins it annotates (so long as it's more than 1).
 
-    -R: Don't compute NetGO at all; instead, assume the alignFiles are *Resnik* outputs, and
-    compte the NetGO-weighted Resnik score.  The first word is ignored (usually 'max', meaning
-    the Maximum variant of Resnik), the 2nd and 3rd columns are the proteins aligned, and the
-    4th column is the Resnik score.
+    -MNE: instead of NetGO, compute the Mean Normalized Entropy (MNE) across all clusters
+
+    -NWR: instead of NetGO, assume the alignFiles are *Resnik* outputs, and compte
+    the NetGO-weighted Resnik score.  The first word is ignored (usually 'max', meaning
+    the Maximum variant of Resnik), the 2nd and 3rd columns are the proteins aligned,
+    and the 4th column is the Resnik score.
+
+    -AFS {pairwise-sim-file}: instead of NetGO, compute the AFS using the pairwise sims
+    whose values are in the file given next on the command line.
 
     OBOfile.obo: obo file from the Gene Ontology website; should be same version as gene2go.
 
@@ -138,17 +143,19 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # true parameter list).
 
 ENTROPY=0
-RESNIK=0
+NWResnik=0
 DRACONIAN=1
 VERBOSE=0
+AFSfile=''
 case "$1" in
 -verbose|-V) VERBOSE=1;shift;;
 esac
 case "$1" in
--E*) ENTROPY=1; shift;;
--R*) RESNIK=1; shift;;
--L*) DRACONIAN=0;shift;;
--D*) DRACONIAN=1;shift;;
+-MNE) ENTROPY=1; shift;;
+-AFS) AFS=1; AFSfile="$2"; [ -f "$AFSfile" ] || die "AFSfile '$AFSfile' doesn't exist"; shift 2;;
+-NWR) NWResnik=1; shift;;
+-L) DRACONIAN=0;shift;;
+-D) DRACONIAN=1;shift;;
 -*) die "unknown option '$1'";;
 esac
 [ $# -ge 3 ] || die "expecting at least 3 arguments: OBOfile.obo, gene2goFile, and at least one clusterAlignFile"
@@ -161,7 +168,7 @@ GENE2GO=$1; shift
 
 for i
 do
-    hawk 'BEGIN{ENTROPY='$ENTROPY';DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';RESNIK='$RESNIK'}
+    hawk 'BEGIN{ENTROPY='$ENTROPY';DRACONIAN='$DRACONIAN';VERBOSE='$VERBOSE';NWResnik='$NWResnik'}
     #BEGINFILE{printf "Reading file %d %s\n",ARGIND,FILENAME}
     #ENDFILE{printf "Finished reading file %d %s\n",ARGIND,FILENAME}
 
@@ -288,11 +295,12 @@ do
     # CA[][]=cluster alignment; pC[p] = clusters this protein is in.
     ARGIND==1{
 	startCol=1;endCol=NF
-	if(RESNIK){
-	    ASSERT(NF==5,"Expecting Resnik files to have exactly 5 columns, including leading NAF");
-	    NAF[FNR]=$1
-	    startCol=3;endCol=4
-	    R[FNR]=$NF
+	if(NWResnik){
+	    ASSERT(3 <= NF && NF<=5, "Expecting Resnik files to have exactly 3, 4, or 5 columns, (with leading NAF and/or max)");
+	    if(NF==3) { startCol=1;endCol=2 }
+	    else if(NF==4) {if($1!="max")NAF[FNR]=$1; startCol=2;endCol=3}
+	    else {ASSERT($2=="max","with 5 cols expect 2nd=max but got "$2); NAF[FNR]=$1; startCol=3;endCol=4}
+	    R[FNR] = $NF
 	}
 	n=0;
 	for(i=startCol;i<=endCol;i++)if($i!="_"&&$i!="-"&&$i!="NA"&&$i!="0"){CA[FNR][n++]=$i;++pC[$i][FNR]}
@@ -333,6 +341,13 @@ do
 	    ++pGO[p][g]; ++GOp[g][p]
 	}
     }
+
+    # Read the AFSfile, if it was given
+    ARGIND==4 { ASSERT(NF==3, "AFS sim file MUST have 3 space (or tab) separated columns: protein1 protein2 sim");
+	ASSERT(!($1 in pairSim && $2 in pairSim[$1]) && !($2 in pairSim && $1 in pairSim[$2]),
+	    "Duplicate pair ["$1","$2"] (or the reverse) in AFS pairwise sim file");
+	pairSim[$1][$2] = pairSim[$2][$1] = $3
+    }
     ENDFILE{ if(ARGIND==3) {
 	# loop over the GO terms in the gene2go file that are associated with proteins in the alignment,
 	# increasing their ancestor GOfreqs as well
@@ -364,7 +379,7 @@ do
 	    if(!(p in pGO)){pGO[p][0]=1;delete pGO[p][0]} #proteins with no GO terms need pGO[p] explicit empty list.
 	    for(g in pGO[p]) sumGOp+=length(pC[p])*K_g(g) # total number of (equivalent) GO terms used in this alignment
 	}
-	if(RESNIK) {
+	if(NWResnik) {
 	    for(line in R){
 		Kmax=0;
 		Kmin=1e30;
@@ -384,5 +399,5 @@ do
 	    know=K_AC(CA);
 	    printf "%s: numClus %d numP %d sumGO %d GOcorpus %d K(A) %g score %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), know, know/sumGOp
 	}
-    }' "$i" $OBO $GENE2GO
+    }' "$i" $OBO $GENE2GO $AFSfile
 done
