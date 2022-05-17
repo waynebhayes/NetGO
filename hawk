@@ -27,8 +27,12 @@ shift
 
 echo "`cat "$DIR/misc.awk"`$PROG" > $TMP
 
-AWK=`(which gawk4 || which gawk) | head -1 | sed 's/\*//g'`
-[ -x "$AWK" ] || AWK=awk
+AWK=`(which gawk4 || which gawk) 2>/dev/null | head -1 | sed 's/\*//g'`
+if [ -x "$AWK" ] && $AWK --version 2>/dev/null | fgrep 'GNU Awk 4.' >/dev/null; then
+    :
+else
+    AWK=awk
+fi
 
 if $AWK -F "$TAB_CHAR" -f "$TMP" "$@"; then : # do nothing, just exit
 else
