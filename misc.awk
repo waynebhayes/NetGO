@@ -179,6 +179,8 @@ function SetUnion(res2,T1,T2,
 # cumulative add set T to res3
 function SetCumulativeUnion(res3,T, g){for(g in T)res3[g]=1}
 
+function Jaccard(T1,T2,   i,u){SetIntersect(i,T1,T2); SetUnion(u,T1,T2); return length(i)/length(u);}
+
 # And now counting the info in an edge list. One way to view the info is simply the number of edges.
 # Another is to view each node's adjacency list as having log(n) bits for each of its neighbors.
 # This then says that the amount of info is as follows: the end of each edge is listed twice (ie is in two neighbor lists),
