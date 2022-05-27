@@ -1,5 +1,5 @@
 #!/bin/sh
-DATABASE_DIR=/home/wayne/extra1/preserve/BioGRID/3.5.176/IDENTIFIERS.tab
+DATABASE_DIR=/home/wayne/extra1/preserve/BioGRID/raw/3.5.176/IDENTIFIERS.tab
 USAGE="PURPOSE: translate between the (bloody annoying) gazillions of naming schemes for genes and proteins,
 by leveraging BiGRID's database of these names.
 
