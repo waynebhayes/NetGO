@@ -414,7 +414,7 @@ do
 	else if (ENTROPY) {
 		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), MNE(CA)
 	} 
-        else if (AFS) {
+        else if ('"$AFS"') {
 		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), AFS(CA)
 	}
 	else {
