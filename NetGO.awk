@@ -143,6 +143,7 @@ die() { echo "$USAGE" >&2; echo "$@" >&2; exit 1
 # true parameter list).
 
 ENTROPY=0
+AFS=0
 NWResnik=0
 DRACONIAN=1
 VERBOSE=0
@@ -220,6 +221,24 @@ do
 	result /= length(C)
 	return result
     }
+    
+    # Return the Average Functional Similarity of a cluster alignment
+	function AFS(C,numClusterFields,a,sum,i,j,S){
+		sum = 0
+		for(c1 = 1;c1 <= length(C); c1++){
+			numClusterFields=length(C[cl])
+			a = 0
+			# Choose pairs of proteins
+			for(i=0;i<numClusterFields;i++){
+				for(j=i+1;j<numClusterFields;j++){
+					a += pairSim[i][j]
+				}
+			}
+			a *= 2/(numClusterFields*(numClusterFields-1))
+			sum += a
+		}
+		return sum/length(C)
+	}
 
     # Knowledge in a general alignment of protein clusters
     # Note technically it would be nice to have a K_C function (knowledge inside a cluster) but AWK makes this hard, so
@@ -394,6 +413,9 @@ do
 	}
 	else if (ENTROPY) {
 		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), MNE(CA)
+	} 
+        else if ('"$AFS"') {
+		printf "%s: numClus %d numP %d sumGO %d GOcorpus %d MNE %g\n", ARGV[1], length(CA), length(pGO), sumGOp, length(GOfreq), AFS(CA)
 	}
 	else {
 	    know=K_AC(CA);
