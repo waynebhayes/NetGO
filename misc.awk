@@ -209,10 +209,13 @@ function LSPredict(n, x, y, xIn,      SUMx,SUMy,SUMxy,SUMxx,i,slope,y_intercept,
 	return slope*xIn + y_intercept;
     }
 }
-function StatReset(name) {
+
+# if quantiles is true (anything nonzero or nonempty string), remember everyting so we can retrieve quantiles later.
+function StatReset(name, quantiles) {
+    _statQuantiles[name]=quantiles;
     _statN[name] = _statSum[name] = _statSum2[name] = 0;
     _statMin[name]=BIGNUM;_statMax[name]=-BIGNUM;
-    _statmin[name]=BIGNUM
+    _statmin[name]=BIGNUM;
 }
 
 function StatHistAddSample(name, x) {
@@ -268,15 +271,30 @@ function StatHistECDF(name,z,  x,prevX,frac,h1,h2) {
     }
     return 1;
 }
+function StatQuantile(name,q,   i,which,where,oldWhere) {
+    ASSERT(_statQuantiles[name], "StatQuantile called on name "name", but _statQuantiles[name] is <"_statQuantiles[name]">");
+    ASSERT(0<= q && q<=1, "StatQuantile called with quantile q="q" which is not in [0,1]");
+    where=0;
+    which=int(q*_statN[name]+0.5);
+    #print "StatQuantile called with q="q" on "_statN[name]" elements; which is set to "which
+    PROCINFO["sorted_in"]="@ind_num_asc"; # traverse history in numerical order of the indices.
+    for(x in _statValue[name]){
+	oldWhere=where;
+	where += _statValue[name][x];
+	if(oldWhere <= which && which <=where) return x;
+    }
+
+}
 
 function StatAddSample(name, x) {
-    if(1*_statN[name]==0)StatReset(name);
+    if(1*_statN[name]==0 && !_statQuantiles[name])StatReset(name);
     _statN[name]++;
     _statSum[name]+=x;
     _statSum2[name]+=x*x;
     _statMin[name]=MIN(_statMin[name],x);
     if(x)_statmin[name]=MIN(_statmin[name],x);
     _statMax[name]=MAX(_statMax[name],x);
+    if(_statQuantiles[name]) ++_statValue[name][x];
 }
 function StatAddWeightedSample(name, x, w) {
     if(1*_statN[name]==0)StatReset(name);
