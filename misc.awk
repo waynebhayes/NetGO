@@ -285,6 +285,9 @@ function StatQuantile(name,q,   i,which,where,oldWhere) {
     }
 
 }
+function StatMedian(name) { return StatQuantile(name,0.5);}
+function StatLowerQuartile(name) { return StatQuantile(name,0.25);}
+function StatUpperQuartile(name) { return StatQuantile(name,0.75);}
 
 function StatAddSample(name, x) {
     if(1*_statN[name]==0 && !_statQuantiles[name])StatReset(name);
