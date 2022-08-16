@@ -329,5 +329,5 @@ hawk '
 if $EBM; then
     echo "Please wait while we run the Empirical Brown's Method to combine the above p-values... may take some time... " >&2
     echo "(Note: there is a C-compiled version of ebm in my github repo for libwayne, in libwayne/tests/ebm.c)" >&2
-    awk '/^GO:/{pV[$1]=$NF}/\tGO:/{n=split($2,a,",");for(i=1;i<=n;i++)GOpair[a[i]][$1]=pair[$1]=1}END{printf "GOterm\tpValue"; for(p in pair)printf "\t%s",p; print ""; for(g in GOpair){printf "%s\t%g",g,pV[g]; for(p in pair)printf "\t%d",1*GOpair[g][p]; print ""}}' $TMPDIR/GOeval.out | tee $TMPDIR/ebm.in | ebm.sh -v || trap "" 0 1 2 3 15
+    gawk '/^GO:/{pV[$1]=$NF}/\tGO:/{n=split($2,a,",");for(i=1;i<=n;i++)GOpair[a[i]][$1]=pair[$1]=1}END{printf "GOterm\tpValue"; for(p in pair)printf "\t%s",p; print ""; for(g in GOpair){printf "%s\t%g",g,pV[g]; for(p in pair)printf "\t%d",1*GOpair[g][p]; print ""}}' $TMPDIR/GOeval.out | tee $TMPDIR/ebm.in | ebm.sh -v || trap "" 0 1 2 3 15
 fi
