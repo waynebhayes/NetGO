@@ -49,6 +49,7 @@ Darwin) GSED=gsed;; # we need a sed that takes the "nu" option
 Linux)GSED=sed;;
 *)GSED=sed;; # fingers crossed...
 esac
+GSED=`(which $GSED || echo sed) | sed 's/\*$//' | head -1`
 
 EXEDIR="`dirname $0`"
 FIELD_SEP="$TAB"
