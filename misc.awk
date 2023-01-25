@@ -210,6 +210,7 @@ function LSPredict(n, x, y, xIn,      SUMx,SUMy,SUMxy,SUMxx,i,slope,y_intercept,
     }
 }
 
+# Queue functions: call QueueAlloc(name) to allocate a queue with name "name"; then Add(name) and Next(name) do the obvious.
 function QueueAlloc(name) { _queueFirst[name]=1; _queueLast[name]=0; _queueVals[name][1]=1; delete _queueVals[name][1];}
 function QueueLength(name) {return _queueLast[name]-_queueFirst[name]+1;}
 function QueueAdd(name, val) {_queueVals[name][++_queueLast[name]]=val;}
