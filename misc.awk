@@ -210,6 +210,15 @@ function LSPredict(n, x, y, xIn,      SUMx,SUMy,SUMxy,SUMxx,i,slope,y_intercept,
     }
 }
 
+function QueueAlloc(name) { _queueFirst[name]=1; _queueLast[name]=0; _queueVals[name][1]=1; delete _queueVals[name][1];}
+function QueueLength(name) {return _queueLast[name]-_queueFirst[name]+1;}
+function QueueAdd(name, val) {_queueVals[name][++_queueLast[name]]=val;}
+function QueueNext(name,	val) {
+    val =  _queueVals[name][_queueFirst[name]  ];
+    delete _queueVals[name][_queueFirst[name]++];
+    return val;
+}
+
 # if quantiles is true (anything nonzero or nonempty string), remember everyting so we can retrieve quantiles later.
 function StatReset(name, quantiles) {
     _statQuantiles[name]=quantiles;
