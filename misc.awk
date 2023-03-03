@@ -115,6 +115,9 @@ function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
 function logFact(k) { if(k in _memLogFact) return _memLogFact[k];
     if(k<=0)return 0; else return (_memLogFact[k]=log(k)+logFact(k-1));
 }
+function log2NumGraphs(n) { # log2(number of non-isomorphic graphs on n nodes), ie. number of bits needed to count them
+    return choose(n,2)-logFact(n)/log(2) # https://cw.fel.cvut.cz/b211/_media/courses/b4m33pal/lectures/isom_notes.pptx
+}
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
