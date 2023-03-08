@@ -15,6 +15,8 @@ function Srand(){
     srand(srand()+PROCINFO["ppid"]) # add user parent PID.
     srand(srand()+PROCINFO["pid"]) # add process ID
 }
+function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
+
 
 function ftos(f){f=sprintf("%.3g",f); gsub("e[+]0","e+",f); return f} # remove leading 0s from exponent
 function floor(x) {if(x>=0) return int(x); else return int(x)-1}
