@@ -680,10 +680,11 @@ function LeastSquaresMSR(  i) {
   variance = (SUMres2 - SUMres*SUMres/_LS_n)/(_LS_n-1);
 }
 
-#Input: a single node, u, to start the BFS, along with the edge list for a graph stored in edge[][]; ASSUMED SYMMETRIC
-#Output: array _BFSdist[] contains shortest paths from u to all nodes reachable from u; includes _BFSdist[u]=0.
-function BFS(u,  V,Q,m,M,x,y) {
-    ASSERT(isarray(edge), "2D edge array must exist");
+#Input: a single node, u, to start the BFS, along with the edge list for a graph stored in _BFSedge[][]; ASSUMED SYMMETRIC
+#Output: array _BFSdist[] contains shortest paths from u to all nodes reachable from u within maxDist; includes _BFSdist[u]=0.
+#        Call with maxDist=n (size of network) to get the BFS distance to everybody
+function BFS(u, searchNode,  V,Q,m,M,x,y) {
+    ASSERT(isarray(_BFSedge), "binary symmetric 2D array _BFSedge must exist");
     delete V; # visited
     delete Q; # queue
     delete _BFSdist; # distance from u
@@ -695,10 +696,11 @@ function BFS(u,  V,Q,m,M,x,y) {
 	ASSERT(x in _BFSdist, x" in Q but not in distance array");
 	if(!(x in V)) {
 	    V[x]=1;
-	    ASSERT(isarray(edge[x]), "edge["x"] is not an array");
-	    for(y in edge[x]) if(!(y in V)) {
+	    ASSERT(isarray(_BFSedge[x]), "_BFSedge["x"] is not an array");
+	    for(y in _BFSedge[x]) if(!(y in V)) {
 		if(y in _BFSdist) _BFSdist[y]=MIN(_BFSdist[y],_BFSdist[x]+1);
 		else _BFSdist[y]=_BFSdist[x]+1;
+		if(y==searchNode) return;
 		Q[M++]=y;
 	    }
 	}
