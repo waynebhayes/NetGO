@@ -706,3 +706,49 @@ function BFS(u, searchNode,  V,Q,m,M,x,y) {
 	}
     }
 }
+
+# Priority Queue Implementation, by Pablo Martin Redondo, UCI March 2023.
+function PQueueAlloc(name) { count[name]=0; heap[name][0][0]=1; delete _heap[name][0][0];}
+function PQueueDelloc(name){ delete count[name]; delete heap[name];}
+function PQueueLength(name) {return _count[name]}
+function _swap(name, i, j) {
+    tmp[0] = heap[name][i][0];tmp[1] = heap[name][i][1];
+    heap[name][i][0] = heap[name][j][0];_heap[name][i][1] = _heap[name][j][1];
+    heap[name][j][0] = tmp[0]; heap[name][j][1] = tmp[1];
+
+}
+function _heapify(name, i) {
+    largest = i;
+    l = 2 * i;
+    r = 2 * i + 1;
+    n = _count[name];
+
+    if ((l <= n) && (heap[name][l][0] > heap[name][largest][0])) largest = l;
+    if ((r <= n) && (heap[name][r][0] > heap[name][largest][0])) largest = r;
+
+    if (largest != i){
+        _swap(name, i, largest);
+        _heapify(name, largest);
+    }
+}
+
+function PQueuePush(name, p, el){
+    size = _count[name];
+    _heap[name][size][0] = p;
+    _heap[name][size][1] = el;
+    _count[name]++;
+    if (size > 0){
+        for(i=int(size/2); i>=0; i--){
+            _heapify(name, i);
+        }
+    }
+}
+
+function PQueuePop(name){
+    size = _count[name];
+    element = _heap[name][0][1];
+    _swap(name, 0, size-1);
+    delete heap[name][size-1]; count[name]--;
+    _heapify(name,0);
+    return element
+}
