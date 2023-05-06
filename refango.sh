@@ -44,7 +44,7 @@ EBM=false
 
 while true; do
     case "$1" in
-    -[Ee][Bb][Mm]) EBM=true;;
+    -[Ee][Bb][Mm]) EBM=true; LIST_PROTEINS=2; FREQ=1;; # turn on additional options needed for EBM to work
     -e[0-9]) ERRORLEVEL=`echo $1 | sed 's/^-e//'`;
 	[ "$ERRORLEVEL" -ge 0 -a "$ERRORLEVEL" -le 9 ] || die "ERRORLEVEL must be 0 through 9 inclusive, not '$ERRORLEVEL'";;
     -w[0-9]) WARNLEVEL=`echo $1 | sed 's/^-w//'`;
