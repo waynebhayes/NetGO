@@ -183,6 +183,7 @@ function SetUnion(res2,T1,T2,
     g){delete res2;for(g in T1)res2[g]=1;for(g in T2)res2[g]=1}
 # cumulative add set T to res3
 function SetCumulativeUnion(res3,T, g){for(g in T)res3[g]=1}
+function SetCopy(dest,src,   g){delete dest;for(g in src)dest[g]=1}
 
 function Jaccard(T1,T2,   i,u){SetIntersect(i,T1,T2); SetUnion(u,T1,T2); return length(i)/length(u);}
 
