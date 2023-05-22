@@ -7,14 +7,14 @@ Default behavior: for each GO term, print p-values compared to random alignment 
 speciesN: use our (admittedly odd) abbreviations, eg HS for HSapiens, RN for RNorvegicus, etc.
 Note: Errors have a severity from 0 (not severe) to 9 (Fatal). Severity < 9 errors can be converted to warnings, or ignored.
 OPTIONS:
--eK means: only halt if severity >= K (Default: K=0, ie., halt on all errors)
--wK means: only warn if severity >= K (Default: K=0, ie., warn on all errors that didn't cause a halt)
--f means: for each GO term, list its frequencies in G1, G2, as well as the alignment
--hg means: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
--pK means: for each pair of proteins in the alignment, list their GO terms based on the value of K:
+-eK: only halt if severity >= K (Default: K=0, ie., halt on all errors)
+-wK: only warn if severity >= K (Default: K=0, ie., warn on all errors that didn't cause a halt)
+-f  for each GO term, list its frequencies in G1, G2, as well as the alignment
+-hg: for each GO term, print p-values according to the HypeGeometric distribution (WARNING: slow!)
+-pK: for each pair of proteins in the alignment, list their GO terms based on the value of K:
     K=s (shared) means print comma-separated list of GO terms SHARED by the two proteins
     K=a (all) means print the above shared list, a tab, then GO terms of protein 1, a tab, then GO terms of protein 2.
--ebm means: combine the p-values across GO terms using the Empirical Brown's Method."
+-ebm (implies '-f'): combine the p-values across GO terms using the Empirical Brown's Method."
 
 # Functions
 die(){ (echo "$USAGE"; echo "FATAL ERROR: $@")>&2; exit 1; }
