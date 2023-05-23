@@ -37,7 +37,7 @@ shift
 echo "`cat "$DIR/misc.awk"`$PROG" > $TMP
 
 AWK=`(which ${PROFILE}gawk4 || which ${PROFILE}gawk) 2>/dev/null | head -1 | sed 's/\*//g'`
-if [ -x "$AWK" ] && $AWK --version 2>/dev/null | fgrep 'GNU Awk 4.' >/dev/null; then
+if [ -x "$AWK" ] && $AWK --version 2>/dev/null | grep 'GNU Awk [45]\.' >/dev/null; then
     :
 else
     AWK=${PROFILE}awk
