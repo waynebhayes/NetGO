@@ -1,4 +1,4 @@
-BEGIN{PI=M_PI=3.14159265358979324;BIGNUM=1*1e30}
+BEGIN{PI=M_PI=3.14159265358979324;BIGNUM=1*1e30; for(i=0;i<256;i++)ASCII[sprintf("%c",i)]=i}
 
 function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
 function WARN(cond,str,verbose){if(!cond){s=sprintf("WARNING: line %d of input file %s: %s",FNR,FILENAME,str); if(verbose)s=s sprintf("\nInput line was:\n<%s>\n", $0); print s >"/dev/stderr"}}
@@ -12,7 +12,7 @@ function nul(s){} # do nothing; useful for holding temp strings in code on the c
 # The default srand() uses time-of-day, which only changes once per second. Not good enough for paraell runs.
 function GetFancySeed(           seed,hostname,n,h,i){
     seed=systime()+PROCINFO["gid"]+PROCINFO["uid"]+PROCINFO["pgrpid"]+PROCINFO["ppid"]+PROCINFO["pid"];
-    "hostname -i"|getline hostname; n=split(hostname,h,".");for(i=1;i<=n;i++)seed+=h[i];
+    "hostname"|getline hostname; n=length(hostname); for(i=1;i<=n;i++) seed+=ASCII[substr(hostname,i,1)];
     return seed;
 }
 function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
