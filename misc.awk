@@ -8,15 +8,15 @@ function MAX(x,y){return x>y?x:y}
 function MIN(x,y){return x<y?x:y}
 
 function nul(s){} # do nothing; useful for holding temp strings in code on the command line.
+
 # The default srand() uses time-of-day, which only changes once per second. Not good enough for paraell runs.
-function Srand(){
-    srand(); # seed with time-of-day
-    srand(srand()+PROCINFO["uid"]) # add user ID.
-    srand(srand()+PROCINFO["ppid"]) # add user parent PID.
-    srand(srand()+PROCINFO["pid"]) # add process ID
+function GetFancySeed(           seed,hostname,n,h,i){
+    seed=systime()+PROCINFO["gid"]+PROCINFO["uid"]+PROCINFO["pgrpid"]+PROCINFO["ppid"]+PROCINFO["pid"];
+    "hostname -i"|getline hostname; n=split(hostname,h,".");for(i=1;i<=n;i++)seed+=h[i];
+    return seed;
 }
 function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
-
+function Srand() { return srand(GetFancySeed());}
 
 function ftos(f){f=sprintf("%.3g",f); gsub("e[+]0","e+",f); return f} # remove leading 0s from exponent
 function floor(x) {if(x>=0) return int(x); else return int(x)-1}
