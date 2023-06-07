@@ -681,31 +681,42 @@ function LeastSquaresMSR(  i) {
   variance = (SUMres2 - SUMres*SUMres/_LS_n)/(_LS_n-1);
 }
 
-#Input: a single node, u, to start the BFS, along with the edge list for a graph stored in _BFSedge[][]; ASSUMED SYMMETRIC
-#Output: array _BFSdist[] contains shortest paths from u to all nodes reachable from u within maxDist; includes _BFSdist[u]=0.
+
+################# GRAPH ROUTINES ##################
+
+#Input: edgeList; a single node, u, to start the BFS; and an (optional) "searchNode" to stop at.
+#Output: array dist[] contains shortest paths from u to all nodes reachable from u within maxDist; includes dist[u]=0.
 #        Call with maxDist=n (size of network) to get the BFS distance to everybody
-function BFS(u, searchNode,  V,Q,m,M,x,y) {
-    ASSERT(isarray(_BFSedge), "binary symmetric 2D array _BFSedge must exist");
+function BFS(edgeList,u,searchNode,dist,   V,Q,m,M,x,y) {
+    ASSERT(isarray(edge), "BFS: edgeList must be binary symmetric 2D array");
     delete V; # visited
     delete Q; # queue
-    delete _BFSdist; # distance from u
-    _BFSdist[u]=0;
+    delete dist; # distance from u
+    dist[u]=0;
     m=M=0;
     Q[M++]=u; # the BFS queue runs from m [inclusive] to M-1, and we increment m as we dequeue elements
     while(M>m) {
 	x = Q[m++];
-	ASSERT(x in _BFSdist, x" in Q but not in distance array");
+	ASSERT(x in dist, x" in Q but not in distance array");
 	if(!(x in V)) {
 	    V[x]=1;
-	    ASSERT(isarray(_BFSedge[x]), "_BFSedge["x"] is not an array");
-	    for(y in _BFSedge[x]) if(!(y in V)) {
-		if(y in _BFSdist) _BFSdist[y]=MIN(_BFSdist[y],_BFSdist[x]+1);
-		else _BFSdist[y]=_BFSdist[x]+1;
+	    ASSERT(isarray(edge[x]), "edge["x"] is not an array");
+	    for(y in edge[x]) if(!(y in V)) {
+		if(y in dist) dist[y]=MIN(dist[y],dist[x]+1);
+		else dist[y]=dist[x]+1;
 		if(y==searchNode) return;
 		Q[M++]=y;
 	    }
 	}
     }
+}
+function MakeEmptySet(S){delete S; S[0]=1; delete S[0]}
+function InducedEdges(edge,T,D,       u,v,m) { # note you can skip passing in D
+    MakeEmptySet(D);
+    for(u in T) for(v in T) if((u in edge) && (v in edge[u])) { ++D[u]; ++D[v]; ++m; }
+    for(u in T) { ASSERT(D[u]%2==0, "InducedEdges: D["u"]="D[u]); D[u]/=2; }
+    ASSERT(m%2==0, "m is not even");
+    return m/2;
 }
 
 # Priority Queue Implementation, by Pablo Martin Redondo, UCI March 2023.
