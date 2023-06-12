@@ -82,7 +82,7 @@ do
     # In the following, the FNR and FILENAME check is because when the TSV is on stdin, the header line is *gone* and the
     # first line is actual data; otherwise the input is a real file and we *see* the header line--so we should skip it by
     # initializing FNR=-1 so the header becomes line 0.
-    (echo 'if(ARGIND=='$argi'){if(FILENAME!="-"){--NR;FNR=-1}'; cat $TMPDIR/varNames.$argi | $GAWK '{printf "colName[%d]=\"%s\";varCol[\"%s\"]=%d;%s=\"%s\"\n",NR,$1,$1,NR,$1,$1}END{printf "NumCols[ARGIND]=%d\n",NR}'; echo '}') >> $TMPDIR/BEGINFILE
+    (echo 'if(ARGIND=='$argi'){if(FILENAME!="-"){--NR;FNR=-1}'; cat $TMPDIR/varNames.$argi | $GAWK '{printf "colName[%d]=\"%s\";colNum[\"%s\"]=varCol[\"%s\"]=%d;%s=\"%s\"\n",NR,$1,$1,$1,NR,$1,$1}END{printf "NumCols[ARGIND]=%d\n",NR}'; echo '}') >> $TMPDIR/BEGINFILE
 done
 if [ "$VERBOSE" -eq 1 ]; then
     cat "$TMPDIR/ASSIGN" >&2

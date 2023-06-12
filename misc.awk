@@ -17,6 +17,7 @@ function GetFancySeed(           seed,hostname,n,h,i){
 }
 function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
 function Srand() { return srand(GetFancySeed());}
+function RandInt(mean,radius) {return mean+2*radius*(rand()-0.5)}
 
 function ftos(f){f=sprintf("%.3g",f); gsub("e[+]0","e+",f); return f} # remove leading 0s from exponent
 function floor(x) {if(x>=0) return int(x); else return int(x)-1}
