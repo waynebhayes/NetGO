@@ -63,7 +63,7 @@ function atand(x) { return atan(x)/PI*180 }
 function AccurateLog1(x,    absX,n,term,sum){
     #return log(1+x); # fuck it
     absX=ABS(x);
-    if(absX<1e-16) return x; # close to machine eps? it's just x
+    if(absX<1e-16) return x; # close to machine eps? it is just x
     if(absX>4e-6) return log(1+x); # built-in one is very good in this range
     ASSERT(x>=-0.5&&x<=1,"AccurateLog1("x") will not converge");
     if(x in _memAccLog1) return _memAccLog1[x];
@@ -75,7 +75,7 @@ function AccurateLog1(x,    absX,n,term,sum){
     # Now sum the terms smallest-to-largest, keeping the two signs separate
     for(i=n;i>0;i--)if(_log1Terms[i]<0)_log1Terms[-1]+=_log1Terms[i]; else _log1Terms[0]+=_log1Terms[i]
     sum = _log1Terms[0] + _log1Terms[-1];
-    sum -= sum*sum; # I'm not sure why, but this gives a MUCH better approximation???
+    sum -= sum*sum; # I am not sure why, but this gives a MUCH better approximation???
     if(n>_nMaxAccLog1){_nMaxAccLog1=n;
 	#printf "AccurateLog: memoize log(1+%.16g)=%.16g, nMax %d\n",x,sum,_nMaxAccLog1 >"/dev/fd/2"
     }
@@ -88,7 +88,7 @@ function LogSumLogs(log_a,log_b,    truth, approx) {
     M=MAX(log_a,log_b)
     ASSERT(M>=m,"BUG: M is not greater than m in LogSumLogs");
     #return M+log(1+Exp(m-M))
-    if(M-m > 37) return M; # m < M*machine_eps, so m won't change M.
+    if(M-m > 37) return M; # m < M*machine_eps, so m will not change M.
     # fuck it
     approx = M+AccurateLog1(Exp(m-M))
     if(ABS(log_a)<700 && ABS(log_b) < 700){
@@ -155,7 +155,7 @@ function logIncGamma(s,x){
     }
 }
 
-# Since gawk can't pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
+# Since gawk cannot pass arrays as parameters, we usurp the global array _Chi2_bins[*][*]. The first index of this array
 # is NAME; for a fixed name, the second index is the bins, which are assumed to be equally probable.
 function Chi2_stat(name,   bin,X2,avg) { ASSERT(name in _Chi2_bins && isarray(_Chi2_bins[name]), "Chi2_Stat: _Chi2_bins["name"] must be an array of your bin counts");
     _Chi2_n[name]=0; for(bin in _Chi2_bins[name])_Chi2_n[name]+=_Chi2_bins[name][bin];
@@ -189,10 +189,10 @@ function SetCopy(dest,src,   g){delete dest;for(g in src)dest[g]=1}
 function Jaccard(T1,T2,   i,u){SetIntersect(i,T1,T2); SetUnion(u,T1,T2); return length(i)/length(u);}
 
 # And now counting the info in an edge list. One way to view the info is simply the number of edges.
-# Another is to view each node's adjacency list as having log(n) bits for each of its neighbors.
+# Another is to view each nodes adjacency list as having log(n) bits for each of its neighbors.
 # This then says that the amount of info is as follows: the end of each edge is listed twice (ie is in two neighbor lists),
 # but only one is strictly needed. And each entry is log2(n) bits. So the total info is just log2(n)*numEdges.
-# But this number is *way* bigger than the number of edges for all 2018 BioGRID networks, so clearly it's too high.
+# But this number is *way* bigger than the number of edges for all 2018 BioGRID networks, so clearly it is too high.
 function netbits(n1,n2,     i,bits){if(n2==0)n2=n1; bits=0;for(i=0;i<MIN(n1,n2);i++)bits+=log(MAX(n1,n2)-i)/log(2); return bits}
 
 function logb(b,x){return log(x)/log(b)}
@@ -746,6 +746,6 @@ function PQpop(name,    old_sort_order, element, p) {
 }
 
 function PQlength(name) { return _PQ_size[name]; }
-function PQalloc(name) { _PQ_size[name]=0;PQ_[name][0][0]=1; delete PQ_[name][0]}
+function PQalloc(name) { _PQ_size[name]=0;PQ_[name][0][0]=1; delete PQ_[name][0] }
 function PQdelloc(name) { delete PQ_size[name]; delete PQ_[name] }
-function PQfree(name) { PQdelloc(name); } # same functionality as delloc
+function PQfree(name) { PQdelloc(name); }
