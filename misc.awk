@@ -720,75 +720,32 @@ function InducedEdges(edge,T,D,       u,v,m) { # note you can skip passing in D
     return m/2;
 }
 
-# Priority Queue Implementation, by Pablo Martin Redondo, UCI March 2023.
-function PQueueAlloc(name) { _PQ_count[name]=0; _PQ_heap[name][0][0]=1; delete _PQ_heap[name][0][0];}
-function PQueueDelloc(name){ delete _PQ_count[name]; delete _PQ_heap[name];}
-function PQueueLength(name) {return _PQ_count[name]}
-function _PQ_swap(name,i,j,	tmp) {
-    tmp[0] = _PQ_heap[name][i][0];tmp[1] = _PQ_heap[name][i][1];
-    _PQ_heap[name][i][0] = _PQ_heap[name][j][0]; _PQ_heap[name][i][1] = _PQ_heap[name][j][1];
-    _PQ_heap[name][j][0] = tmp[0]; _PQ_heap[name][j][1] = tmp[1];
-
-}
-function _PQ_heapify(name,i,	largest,l,r,n) {
-    largest = i;
-    l = 2 * i;
-    r = 2 * i + 1;
-    n = _PQ_count[name];
-
-    if ((l <= n) && (_PQ_heap[name][l][0] > _PQ_heap[name][largest][0])) largest = l;
-    if ((r <= n) && (_PQ_heap[name][r][0] > _PQ_heap[name][largest][0])) largest = r;
-
-    if (largest != i){
-        _PQ_swap(name, i, largest);
-        _PQ_heapify(name, largest);
-    }
-}
-
-function PQueuePush(name,p,el,	size,i){
-    size = _PQ_count[name];
-    _PQ_heap[name][size][0] = p;
-    _PQ_heap[name][size][1] = el;
-    _PQ_count[name]++;
-    if (size > 0){
-        for(i=int(size/2); i>=0; i--){
-            _PQ_heapify(name, i);
-        }
-    }
-}
-
-function PQueuePop(name,	size,element){
-    size = _PQ_count[name];
-    element = _PQ_heap[name][0][1];
-    _PQ_swap(name, 0, size-1);
-    delete _PQ_heap[name][size-1]; _PQ_count[name]--;
-    _PQ_heapify(name,0);
-    return element
-}
-
-
 # Note: Possible sort orders are: "@unsorted",
 # "@ind_str_asc",	"@ind_num_asc",	 "@val_type_asc",  "@val_str_asc",  "@val_num_asc",
 # "@ind_str_desc",	"@ind_num_desc", "@val_type_desc", "@val_str_desc", "@val_num_desc",
 # This implementation allows multiple elements with the same priority... and even multiple [p][element] duplicates
-function PQpush(name, pri, element) { ++_PQ_[name][pri][element]; }
+function PQpush(name, pri, element) { ++_PQ_[name][pri][element]; _PQ_size[name]++ }
 
-function PQpop(name,	old_sort_order, element, p) {
+function PQpop(name,    old_sort_order, element, p) {
     old_sort_order=PROCINFO["sorted_in"]; # remember sort order to restore it afterwards
     PROCINFO["sorted_in"]="@ind_num_desc";
     for(p in _PQ_[name]) {
-	# Note that if multiple elements have the same priority, we will return them in SORTED order not INSERTION order
-	for(element in _PQ_[name][p]) {
-	    if(--_PQ_[name][p][element]==0) {
-		delete _PQ_[name][p][element];
-		if(length(_PQ_[name][p])==0) delete _PQ_[name][p];
-	    }
-	    break; # exit at first iteration
-	}
-	break; # exit at first iteration
+        # Note that if multiple elements have the same priority, we will return them in SORTED order not INSERTION order
+        for(element in _PQ_[name][p]) {
+            if(--_PQ_[name][p][element]==0) {
+                delete _PQ_[name][p][element];
+                if(length(_PQ_[name][p])==0) delete _PQ_[name][p];
+            }
+            break; # exit at first iteration
+        }
+        break; # exit at first iteration
     }
     PROCINFO["sorted_in"]=old_sort_order; # restore sort order
+    _PQ_size[name]--
     return element;
 }
 
-function PQlength(name) { return length(_PQ_[name]); }
+function PQlength(name) { return _PQ_size[name]; }
+function PQalloc(name) { _PQ_size[name]=0;PQ_[name][0][0]=1; delete PQ_[name][0]}
+function PQdelloc(name) { delete PQ_size[name]; delete PQ_[name] }
+function PQfree(name) { PQdelloc(name); } # same functionality as delloc
