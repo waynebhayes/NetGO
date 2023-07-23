@@ -192,11 +192,10 @@ do
 	for(cl=1;cl<=length(C);cl++){
 		P_i = 0;
 	    NE = 0;
-	    if(VERBOSE) printf "Cluster %d numProteins %d\n",cl,length(C[cl])
 	    numClusterFields=length(C[cl]);
 	    delete M; M[0]=1;delete M[0]; # initialize M to empty list; M=set of protein members;
 	    delete T; T[0]=1;delete T[0]; # initialize T to empty list; T=set of GO terms across the cluster;
-		if(numClusterFields>1){ # have to match more than one protein to be interesting (handle duplicates below)
+	    if(numClusterFields>1){ # have to match more than one protein to be interesting (handle duplicates below)
 		# incremently update the count T[g] if the GO term annotates more than one protein.
 		for(i=0;i<numClusterFields;i++){
 		    u=C[cl][i]
@@ -208,15 +207,16 @@ do
 		    } else {
 			    for(g in pGO[u])++T[g]; # cumulative union of common GO terms
 		    }
+		}
 	    }
-		}
-		for(g in T) {
-			P_i = T[g] / numClusterFields
-			ASSERT(0<=P_i && P_i <= 1,"P_i not in [0,1]")
-			NE += (P_i * log(P_i))
-		}
-		NE /= log(numClusterFields)
-		result += NE
+	    for(g in T) {
+		P_i = T[g] / numClusterFields
+		ASSERT(0<=P_i && P_i <= 1,"P_i not in [0,1]")
+		NE += (P_i * log(P_i))
+	    }
+	    NE /= log(numClusterFields)
+	    result += NE
+	    if(VERBOSE) printf "%s,%s\tNE %g\n",C[cl][0],C[cl][1],NE
 	}
 	result /= length(C)
 	return result
