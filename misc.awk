@@ -118,7 +118,8 @@ function fact(k)    {if(k<=0)return 1; else return k*fact(k-1)}
 function logFact(k) { if(k in _memLogFact) return _memLogFact[k];
     if(k<=0)return 0; else return (_memLogFact[k]=log(k)+logFact(k-1));
 }
-function log2NumGraphs(n) { # log2(number of non-isomorphic graphs on n nodes), ie. number of bits needed to count them
+function log2NumSimpleGraphs(n) { # log2(number of non-isomorphic graphs on n nodes), ie. number of bits needed to count them
+    # see https://oeis.org/A000088 for comparison for n=0,.. 19
     return choose(n,2)-logFact(n)/log(2) # https://cw.fel.cvut.cz/b211/_media/courses/b4m33pal/lectures/isom_notes.pptx
 }
 function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
@@ -126,7 +127,8 @@ function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 # see Reza expansion: (n k) = ((n-1) (k-1)) + ((n-1) k)
 function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
 function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
-    ASSERT(0<=k && k <=n,"invalid logChoose("n","k")"); return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
+    if(n<k) return log(0); else ASSERT(0<=k && k <=n,"invalid logChoose("n","k")");
+    return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
 }
 function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
