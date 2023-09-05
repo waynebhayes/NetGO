@@ -597,7 +597,8 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     DX=_Pearson_sumX2[name]-_Pearson_sumX[name]*_Pearson_sumX[name]/_Pearson_N[name]
     DY=_Pearson_sumY2[name]-_Pearson_sumY[name]*_Pearson_sumY[name]/_Pearson_N[name]
     #print DX,DY >"/dev/stderr"
-    denom=sqrt(DX*DY); _Pearson_rho[name]=0; if(denom)_Pearson_rho[name]=numer/denom;
+    denom=sqrt(ABS(DX*DY)); # ABS since sometimes it is very slightly negative due to rounding errors
+    _Pearson_rho[name]=0; if(denom)_Pearson_rho[name]=numer/denom;
     _Pearson_t[name]=Pearson2T(_Pearson_N[name],_Pearson_rho[name]);
     if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
     # Fisher R-to-z
