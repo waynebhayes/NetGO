@@ -1,5 +1,5 @@
 #!/bin/sh
-USAGE="USAGE: $0 [list of names]
+USAGE="USAGE: $0 [-i] [-l] [list of names]
 PURPOSE: for each species name (long or short form) given on the command line, output one line with the following info:
 	name-from-command-line	BioGRIDname	list of taxonomic IDs associated with the species
 If the species on the command line is already an integer, don't touch it, and use NONE as the longer name.
@@ -15,10 +15,15 @@ SANA_DIR=${SANA_DIR?:"environment variable SANA_DIR needs to be set to main SANA
 [ -d $SANA_DIR ] || die "cannot open SANA_DIR repo at <$SANA_DIR>"
 
 IGNORE_CASE=''
-case "$1" in
--i) IGNORE_CASE="-i"; shift ;;
--*) die "unknown option '$1'";;
-esac
+LONG=false
+while true; do
+    case "$1" in
+    -i) IGNORE_CASE="-i"; shift ;;
+    -l) LONG=true; shift;;
+    -*) die "unknown option '$1'";;
+    *) break;;
+    esac
+done
 
 for q
 do
@@ -27,11 +32,18 @@ do
     else
 	(
 	    cd $SANA_DIR/resnik/taxons
-	    Q=`echo "$q" | sed 's/[ 	.]//g' | sed 's/IID//'`
-	    FILE=`ls | grep $IGNORE_CASE "$Q"`
+	    if $LONG; then
+		Q=`echo "$q" | awk '{printf "%s[a-z]*_%s\n", substr($0,1,1), tolower(substr($0,2,1))}'`
+		FILE=`ls | grep $IGNORE_CASE "$Q"` # HS -> Homo_sapiens, full BioGRID name
+	    else
+		Q=`echo "$q" | sed 's/[ 	.]//g' | sed 's/IID//'`
+		FILE=`ls | grep $IGNORE_CASE "$Q"` # HS -> HSapiens, my traditional midsize name
+	    fi
 	    #if [ `echo $FILE | wc -w` -gt 1 ]; then echo "Warning: $q" matches multiple files: $FILE >&2; fi
 	    for f in $FILE; do
-		newlines < $f | awk 'BEGIN{F="'"$f"'";short=substr(F,1,2); printf "%s\t%s",short,F}
+		echo -n "$q"
+		newlines < $f |
+		    awk 'BEGIN{F="'"$f"'"; printf "\t%s",F }
 		    {for(i=1;i<=NF;i++)printf "\t%s",$i}END{print ""}'
 	    done
 	)
