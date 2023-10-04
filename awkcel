@@ -9,7 +9,8 @@ PURPOSE: given input file[s] with a constant number of tab-separated columns (ca
     Comments are allowed in TSV files only ABOVE the header line, and # must be the FIRST character of the line.
     All variables are remembered between files given on the same awkcel command-line (though if the same column name
     appears in a later file it will over-write the variable assigned in a previous TSV file
-    The variable HEADER[ARGIND] contains the header line of the filenumber ARGIND.
+    The variable HEADER[ARGIND] contains the header line of the filenumber ARGIND, and colName[i] is a string containing
+    the variable name of column i of the CURRENT file being processed (ie., those names of HEADER[ARGIND]).
 
 OPTIONS:
     -f PROG_filename: put the awk script in a file--can contain only functions, for example
