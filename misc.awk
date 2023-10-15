@@ -305,6 +305,38 @@ function StatHistBinarySearch(name,z,    i,n,L,R,m,x) {
     return m;
 }
 
+function StatHistInterpSearch(name,z,    frac,i,n,L,R,m,x) {
+    n=length(_statHistCDFix[name]);
+    for(i=1;i<=n;i++) ASSERT(i in _statHistCDFix[name], i" is not in F_ix out of "n);
+    if(z < _statHistCDFix[name][1]) return 0;
+    if(z >= _statHistCDFix[name][n]) return n;
+    L=1; R=n; frac=0.5;
+    while(L < R) {
+	ASSERT(0<=frac && frac<=1,"frac "frac" out of bounds");
+        m = int(frac*(L + R));
+	ASSERT(m>0 && m<=n, "m "m" is out of bounds for n "n" L "L" R "R);
+	ASSERT(m in _statHistCDFix[name],"oops, m is "m" out of n="n);
+	x=1*_statHistCDFix[name][m];
+	ASSERT(x==0|| (x in _statHistCDF[name]), "oops, x "x" is not in _statHistCDF["name"]");
+	if(x < z) L = m + 1
+        else if(x > z) R = m - 1
+        else return m
+	if(_statHistCDFix[name][R] == _statHistCDFix[name][L]) frac=0.5;
+	else frac=(x-_statHistCDFix[name][L])/(_statHistCDFix[name][R]-_statHistCDFix[name][L]);
+	if(frac<=0 || frac>=1) frac=0.5;
+    }
+    # At this point, the value was not found, so return the m just below z
+    m = int((L + R) / 2);
+    if(m>0 && m<=n) {
+	ASSERT(m in _statHistCDFix[name],"oops, m is "m" out of n="n);
+	x=_statHistCDFix[name][m];
+	ASSERT(x in _statHistCDF[name], "oops, x "x" is not in _statHistCDF["name"]");
+	while(m>0 && _statHistCDFix[name][m] > z) --m;
+    }
+    #printf "FOUND x %g at m %d from n %d L %d R %d\n", x,m,n,L,R
+    return m;
+}
+
 # Return the value in [0,1] of the empirical CDF of [name]
 function StatHistECDF(name,z,  n,x,prevX,frac,h1,h2,interp,prevSort,m) {
     z=1*z;
@@ -312,7 +344,7 @@ function StatHistECDF(name,z,  n,x,prevX,frac,h1,h2,interp,prevSort,m) {
     if(!(name in _statHistCDF)) StatHistMakeCDF(name);
     if(z<=_statHistMin[name]) return 0;
     n=length(_statHistCDFix[name]);
-    m=StatHistBinarySearch(name,z);
+    m=StatHistInterpSearch(name,z);
     #printf "z %g i %d x %g\n", z, m, _statHistCDF[name][_statHistCDFix[name][m]]
     # in the following, h1 and h2 are actually x values
     if(m<1) h1=-BIGNUM; else h1=_statHistCDFix[name][m];
@@ -364,7 +396,7 @@ function KSstat(name1,name2,   x,maxD,diff,sign) {
 
 function KSpvalue(ks_stat,n1,n2, C) {
     C=ks_stat/sqrt((n1+n2)/(n1*n2));
-    return 2*exp(-2*C*C);
+    return 2*Exp(-2*C*C);
 }
 
 function StatQuantile(name,q,   i,which,where,oldWhere,prevSort) {
