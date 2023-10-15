@@ -1,6 +1,6 @@
 BEGIN{PI=M_PI=3.14159265358979324;BIGNUM=1*1e30; for(i=0;i<256;i++)ASCII[sprintf("%c",i)]=i}
 
-function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
+function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
 function WARN(cond,str,verbose){if(!cond){s=sprintf("WARNING: line %d of input file %s: %s",FNR,FILENAME,str); if(verbose)s=s sprintf("\nInput line was:\n<%s>\n", $0); print s >"/dev/stderr"}}
 function ABS(x){return x<0?-x:x}
 function SIGN(x){return x==0?0:x/ABS(x)}
@@ -240,72 +240,142 @@ function StatReset(name, quantiles) {
 }
 
 function StatHistAddSample(name, x) {
-    if(!(name in _statHistMin)) _statHistMin[name]=-1*BIGNUM;
-    x=1*x;
-    if(x < _statHistMin[name]) _statHistMin[name]=x;
-    ++_statHist[name][x];
+    if(!(name in _statHistMin)) _statHistMin[name]=1*BIGNUM;
+    if(1*x < _statHistMin[name]) _statHistMin[name]=1*x;
+    ++_statHist[name][1*x];
     ++_statHistN[name];
 }
-function StatHistMakeCDF(name,    x,prevX,PMF) {
+function StatHistMakeCDF(name,    n,x,prevX,PMF,prevSort) {
     delete _statHistCDF[name];
-    prevX=(-BIGNUM); # very very negative number
+    delete _statHistCDFix[name];
+    prevX=-1*(BIGNUM); # very very negative number
+    n=0; _statHistCDFix[name][0] = prevX;
+    prevSort=PROCINFO["sorted_in"];
     PROCINFO["sorted_in"]="@ind_num_asc"; # traverse the array in numerical ascending order by index (ie., x)
     for(x in _statHist[name]) {
-	x=1*x; # ensure it is a number
-	ASSERT(x > prevX, "oops, StatHistMakeCDF found non-incrementing x: "prevX" to "x);
-	PMF = _statHist[name][x]/(_statHistN[name]);
-	_statHistCDF[name][x] = _statHistCDF[name][prevX] + PMF;
+	_statHistCDFix[name][++n] = 1*x;
+	ASSERT(1*x > 1*prevX, "oops, StatHistMakeCDF found non-incrementing x: "prevX" to "x);
+	PMF = _statHist[name][1*x]/(_statHistN[name]);
+	_statHistCDF[name][1*x] = _statHistCDF[name][1*prevX] + PMF;
 	#printf "_statHistCDF[%s][%g]=%g\n", name, x, _statHistCDF[name][x] >"/dev/stderr";
 	prevX = x;
     }
+    PROCINFO["sorted_in"]=prevSort;
     # _statHistCDF[name][prevX] may be above 1 due to numerical error; give it some leeway here.
     ASSERT(_statHistCDF[name][prevX]<1+1e-6/_statHistN[name], "_statHistCDF["name"]["prevX"]-1="_statHistCDF[name][prevX]-1" which is too far above 1");
-    delete _statHistCDF[name][-BIGNUM]; # remove the array element that was created in the first loop above.
     _statHistCDF[name][prevX]=1;
+    # remove the -infinity elements created above
+    delete _statHistCDF[name][-1*BIGNUM]; # remove the array element that was created in the first loop above.
+    delete _statHistCDFix[name][0];
 }
-function StatHistBinarySearch(name,z,    n,L,R,m) {
-    n=length(_statHistCDF[name]);
-#    L= 0; R=n−1
-#    while L ≤ R do
-#        m := floor((L + R) / 2)
-#        if A[m] < T then
-#            L := m + 1
-#        else if A[m] > T then
-#            R := m − 1
-#        else:
-#            return m
-#    return unsuccessful
+
+# return the m with x closest to z with x<=z
+function StatHistBinarySearch(name,z,    i,n,L,R,m,x) {
+    n=length(_statHistCDFix[name]);
+    for(i=1;i<=n;i++) ASSERT(i in _statHistCDFix[name], i" is not in F_ix out of "n);
+    if(z < _statHistCDFix[name][1]) return 0;
+    if(z >= _statHistCDFix[name][n]) return n;
+    L=1; R=n;
+    while(L < R) {
+        m = int((L + R) / 2);
+	ASSERT(m>0 && m<=n, "m "m" is out of bounds for n "n" L "L" R "R);
+	ASSERT(m in _statHistCDFix[name],"oops, m is "m" out of n="n);
+	x=1*_statHistCDFix[name][m];
+	ASSERT(x==0|| (x in _statHistCDF[name]), "oops, x "x" is not in _statHistCDF["name"]");
+	if(x < z) L = m + 1
+        else if(x > z) R = m - 1
+        else return m
+    }
+    # At this point, the value was not found, so return the m just below z
+    m = int((L + R) / 2);
+    if(m>0 && m<=n) {
+	ASSERT(m in _statHistCDFix[name],"oops, m is "m" out of n="n);
+	x=_statHistCDFix[name][m];
+	ASSERT(x in _statHistCDF[name], "oops, x "x" is not in _statHistCDF["name"]");
+	while(m>0 && _statHistCDFix[name][m] > z) --m;
+    }
+    #printf "FOUND x %g at m %d from n %d L %d R %d\n", x,m,n,L,R
+    return m;
 }
-function StatHistECDF(name,z,  x,prevX,frac,h1,h2) {
+
+# Return the value in [0,1] of the empirical CDF of [name]
+function StatHistECDF(name,z,  n,x,prevX,frac,h1,h2,interp,prevSort,m) {
     z=1*z;
     ASSERT(name in _statHist, "StatHistECDF: no such histogram "name);
+    if(!(name in _statHistCDF)) StatHistMakeCDF(name);
     if(z<=_statHistMin[name]) return 0;
-    #if(z==_statHistMin[name]) return 0 * _statHistCDF[name][_statHistMin[name]];
+    n=length(_statHistCDFix[name]);
+    m=StatHistBinarySearch(name,z);
+    #printf "z %g i %d x %g\n", z, m, _statHistCDF[name][_statHistCDFix[name][m]]
+    # in the following, h1 and h2 are actually x values
+    if(m<1) h1=-BIGNUM; else h1=_statHistCDFix[name][m];
+    if(m>=n) h2=BIGNUM; else h2=_statHistCDFix[name][m+1];
+    frac=(z-h1)/(h2-h1);
+    # Now convert the x values to histogram values
+    interp=_statHistCDF[name][h1]+frac*(_statHistCDF[name][h2] - _statHistCDF[name][h1]);
+    return interp; ######### COMMENT OUT THIS LINE TO CHECK THIS VALUE AGAINST OLD CORRECT CODE BELOW
+    prevSort=PROCINFO["sorted_in"];
     PROCINFO["sorted_in"]="@ind_num_asc";
-    prevX=_statHistMin[name];
     for(x in _statHistCDF[name]){
 	if(1*x>z) {
-	    frac=(z-prevX)/(x-prevX); h1=_statHistCDF[name][prevX]; h2=_statHistCDF[name][x];
-	    return h1 + frac*(h2-h1);
+	    if(m>0) ASSERT(h1==prevX,"m is "m" with x1 "h1" but new is "prevX);
+	    if(m>1) ASSERT(h2==    x,"m is "m" with x2 "h2" but new is "x);
+	    if(m>0 && m<=n) ASSERT(frac==(z-prevX)/(x-prevX), "frac disagreement "frac" vs "(z-prevX)/(x-prevX));
+	    h1=_statHistCDF[name][prevX]; h2=_statHistCDF[name][x];
+	    PROCINFO["sorted_in"]=prevSort;
+	    ASSERT(interp == h1+frac*(h2-h1), "interp disagreement "interp" vs "h1+frac*(h2-h1));
+	    return h1+frac*(h2-h1);
 	}
 	prevX=x;
     }
+    PROCINFO["sorted_in"]=prevSort;
     return 1;
 }
-function StatQuantile(name,q,   i,which,where,oldWhere) {
+
+# Return the K-S (Kolmogorov-Smirnnov) statistic: the maximum distance between the empirical CDFs of name1 and name2
+# FIXME: time is O((n1+n2)^2) since we loop through every value of the histogram, calling ECDF which ALSO does the SAME loop
+# It can be done in time O(n1+n2) if we are a bit more clever.
+function KSstat(name1,name2,   x,maxD,diff,sign) {
+    maxD=0;
+    StatHistMakeCDF(name1);
+    StatHistMakeCDF(name2);
+    prevX=_statHistMin[name1];
+    prevSort=PROCINFO["sorted_in"];
+    PROCINFO["sorted_in"]="@ind_num_asc";
+    for(x in _statHistCDF[name1]) {
+	diff = _statHistCDF[name1][x] - StatHistECDF(name2, x);
+	if(ABS(diff) > ABS(maxD)) {sign=1; maxD = diff}
+    }
+    prevX=_statHistMin[name2];
+    for(x in _statHistCDF[name2]) {
+	diff = _statHistCDF[name2][x] - StatHistECDF(name1, x);
+	if(ABS(diff) > ABS(maxD)) {sign=-1; maxD = diff}
+    }
+    PROCINFO["sorted_in"]=prevSort;
+    return sign*maxD;
+}
+
+function KSpvalue(ks_stat,n1,n2, C) {
+    C=ks_stat/sqrt((n1+n2)/(n1*n2));
+    return 2*exp(-2*C*C);
+}
+
+function StatQuantile(name,q,   i,which,where,oldWhere,prevSort) {
     ASSERT(_statQuantiles[name], "StatQuantile called on name "name", but _statQuantiles[name] is <"_statQuantiles[name]">");
     ASSERT(0<= q && q<=1, "StatQuantile called with quantile q="q" which is not in [0,1]");
     where=0;
     which=int(q*_statN[name]+0.5);
     #print "StatQuantile called with q="q" on "_statN[name]" elements; which is set to "which
+    prevSort=PROCINFO["sorted_in"];
     PROCINFO["sorted_in"]="@ind_num_asc"; # traverse history in numerical order of the indices.
     for(x in _statValue[name]){
 	oldWhere=where;
 	where += _statValue[name][x];
 	if(oldWhere <= which && which <=where) return x;
     }
-
+    PROCINFO["sorted_in"]=prevSort;
 }
+
 function StatMedian(name) { return StatQuantile(name,0.5);}
 function StatLowerQuartile(name) { return StatQuantile(name,0.25);}
 function StatUpperQuartile(name) { return StatQuantile(name,0.75);}
@@ -730,8 +800,8 @@ function InducedEdges(edge,T,D,       u,v,m) { # note you can skip passing in D
 # This implementation allows multiple elements with the same priority... and even multiple [p][element] duplicates
 function PQpush(name, pri, element) { ++_PQ_[name][pri][element]; _PQ_size[name]++ }
 
-function PQpop(name,    old_sort_order, element, p) {
-    old_sort_order=PROCINFO["sorted_in"]; # remember sort order to restore it afterwards
+function PQpop(name,    prevSort, element, p) {
+    prevSort=PROCINFO["sorted_in"]; # remember sort order to restore it afterwards
     PROCINFO["sorted_in"]="@ind_num_desc";
     for(p in _PQ_[name]) {
         # Note that if multiple elements have the same priority, we will return them in SORTED order not INSERTION order
@@ -744,7 +814,7 @@ function PQpop(name,    old_sort_order, element, p) {
         }
         break; # exit at first iteration
     }
-    PROCINFO["sorted_in"]=old_sort_order; # restore sort order
+    PROCINFO["sorted_in"]=prevSort; # restore sort order
     _PQ_size[name]--
     return element;
 }
