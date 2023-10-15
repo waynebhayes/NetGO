@@ -51,6 +51,7 @@ Linux)GSED=sed;;
 *)GSED=sed;; # fingers crossed...
 esac
 GSED=`(which $GSED || echo sed) | sed 's/\*$//' | head -1`
+$GSED -nu </dev/null || die "we need a sed that takes the '-nu' options, but $GSED doesn't"
 
 EXEDIR="`dirname $0`"
 FIELD_SEP="$TAB"
@@ -79,7 +80,9 @@ do
     # Automatically create awk code to assign the appropriate variables from the header.  This is tricky if the input is a pipe:
     # we need to avoid eating *anything* other than the header; thus the weird "sed -nu" command, which removes leading
     # comment lines, prints the header line for the later pipe, and leaves the rest of the input untouched.
-    (echo 'if(ARGIND=='$argi'){if(_awkcelStarted[ARGIND] && !(ARGIND in HEADER)){HEADER[ARGIND]=$0;next}'; $GSED -nu '/^[^#]/{p;q}' "$i" | sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | $GAWK '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
+    (echo 'if(ARGIND=='$argi'){if(_awkcelStarted[ARGIND] && !(ARGIND in HEADER)){HEADER[ARGIND]=$0;next}';
+	$GSED -nu "/^[^#]/{ p$NL q $NL}" "$i" |
+	sed "s/$FIELD_SEP/ /g" | newlines | tr '$%' 'DP' | sed -e 's/[^_A-Za-z0-9]/_/g' | tee $TMPDIR/varNames.$argi | $GAWK '{printf "%s=$%d\n", $1,NR}' | sed 's/^\([0-9]\)/_\1/'; echo '}') >> $TMPDIR/ASSIGN
     # In the following, the FNR and FILENAME check is because when the TSV is on stdin, the header line is *gone* and the
     # first line is actual data; otherwise the input is a real file and we *see* the header line--so we should skip it by
     # initializing FNR=-1 so the header becomes line 0.
