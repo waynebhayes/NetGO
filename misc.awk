@@ -344,7 +344,7 @@ function StatHistECDF(name,z,  n,x,prevX,frac,h1,h2,interp,prevSort,m) {
     if(!(name in _statHistCDF)) StatHistMakeCDF(name);
     if(z<=_statHistMin[name]) return 0;
     n=length(_statHistCDFix[name]);
-    m=StatHistInterpSearch(name,z);
+    m=StatHistBinarySearch(name,z);
     #printf "z %g i %d x %g\n", z, m, _statHistCDF[name][_statHistCDFix[name][m]]
     # in the following, h1 and h2 are actually x values
     if(m<1) h1=-BIGNUM; else h1=_statHistCDFix[name][m];
