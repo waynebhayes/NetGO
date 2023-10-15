@@ -239,6 +239,13 @@ function StatReset(name, quantiles) {
     _statmin[name]=BIGNUM;
 }
 
+function StatHistReset(name) {
+    delete _statHist[name];
+    delete _statHistN[name];
+    delete _statHistMin[name];
+    delete _statHistCDF[name];
+    delete _statHistCDFix[name];
+}
 function StatHistAddSample(name, x) {
     if(!(name in _statHistMin)) _statHistMin[name]=1*BIGNUM;
     if(1*x < _statHistMin[name]) _statHistMin[name]=1*x;
