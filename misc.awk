@@ -126,9 +126,9 @@ function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 # see Reza expansion: (n k) = ((n-1) (k-1)) + ((n-1) k)
 function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
-function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
+function logChoose(n,k) {
     if(n<k) return log(0); else ASSERT(0<=k && k <=n,"invalid logChoose("n","k")");
-    return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
+    return logFact(n)-logFact(k)-logFact(n-k);
 }
 function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
