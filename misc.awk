@@ -712,7 +712,7 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
     # Fisher R-to-z
     z=0.5*log((1+_Pearson_rho[name])/(1-_Pearson_rho[name]))
-    zse=1/sqrt(_Pearson_N[name]-3)
+    zse=1/sqrt(ABS(_Pearson_N[name]-3))
     _Pearson_p[name]=F=2*MIN(NormalDist(0,zse,z),NormalDist(0,zse,-z))
     # We seem to be at least 100x too small according to Fisher
     if(_Pearson_p[name]>1)_Pearson_p[name]=1-1/_Pearson_p[name]
