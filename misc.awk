@@ -15,6 +15,7 @@ function GetFancySeed(           seed,hostname,n,h,i){
     "hostname"|getline hostname; n=length(hostname); for(i=1;i<=n;i++) seed+=ASCII[substr(hostname,i,1)];
     return seed;
 }
+function strip(s) { gsub("  *"," ",s); sub("  *$","",s); return s}
 function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
 function Srand() { return srand(GetFancySeed());}
 function RandInt(mean,radius) {return mean+2*radius*(rand()-0.5)}
