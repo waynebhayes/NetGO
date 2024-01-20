@@ -833,6 +833,16 @@ function InducedEdges(edge,T,D,       u,v,m) { # note you can skip passing in D
     ASSERT(m%2==0, "m is not even");
     return m/2;
 }
+function InducedWeightedEdges(edge,T,D,       u,v,m,all1) { # note you can skip passing in D
+    MakeEmptySet(D); all1=1;
+    for(u in T) for(v in T) if((u in edge) && (v in edge[u])) {
+	if(edge[u][v] != 1) all1 = 0;
+	D[u]+=edge[u][v]; D[v]+=edge[u][v]; m+=edge[u][v];
+    }
+    for(u in T) { if(all1) ASSERT(D[u]%2==0, "InducedEdges: D["u"]="D[u]); D[u]/=2; }
+    if(all1) ASSERT(m%2==0, "m is not even");
+    return m/2;
+}
 
 # Note: Possible sort orders are: "@unsorted",
 # "@ind_str_asc",	"@ind_num_asc",	 "@val_type_asc",  "@val_str_asc",  "@val_num_asc",
