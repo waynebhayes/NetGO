@@ -102,7 +102,7 @@ fi
     NF!=NumCols[ARGIND]&&'$QUIET'==0{
 	Warn(sprintf("awkcel: expected %d columns at %s:%d but found %d", NumCols[ARGIND], FILENAME, FNR, NF));
     }
-    /#/&&'$QUIET'==0{Warn(sprintf("awkcel: comment (#) character not honored on line %d of %s", FNR, FILENAME))}
+    /^#/&&'$QUIET'==0{Warn(sprintf("awkcel: comment (#) character not honored on line %d of %s", FNR, FILENAME))}
     !_awkcelStarted[ARGIND]{next}
     {'"`cat $TMPDIR/ASSIGN`"'}'
     cat $TMPDIR/userPROG
