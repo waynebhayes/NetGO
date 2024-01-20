@@ -15,6 +15,7 @@ function GetFancySeed(           seed,hostname,n,h,i){
     "hostname"|getline hostname; n=length(hostname); for(i=1;i<=n;i++) seed+=ASCII[substr(hostname,i,1)];
     return seed;
 }
+function strip(s) { gsub("  *"," ",s); sub("  *$","",s); return s}
 function randsort(i1,v1,i2,v2) { return rand()-0.5 } # use this to have for loops go in random order
 function Srand() { return srand(GetFancySeed());}
 function RandInt(mean,radius) {return mean+2*radius*(rand()-0.5)}
@@ -126,9 +127,9 @@ function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 # see Reza expansion: (n k) = ((n-1) (k-1)) + ((n-1) k)
 function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
-function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
+function logChoose(n,k) {
     if(n<k) return log(0); else ASSERT(0<=k && k <=n,"invalid logChoose("n","k")");
-    return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
+    return logFact(n)-logFact(k)-logFact(n-k);
 }
 function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
@@ -712,7 +713,7 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
     # Fisher R-to-z
     z=0.5*log((1+_Pearson_rho[name])/(1-_Pearson_rho[name]))
-    zse=1/sqrt(_Pearson_N[name]-3)
+    zse=1/sqrt(ABS(_Pearson_N[name]-3))
     _Pearson_p[name]=F=2*MIN(NormalDist(0,zse,z),NormalDist(0,zse,-z))
     # We seem to be at least 100x too small according to Fisher
     if(_Pearson_p[name]>1)_Pearson_p[name]=1-1/_Pearson_p[name]

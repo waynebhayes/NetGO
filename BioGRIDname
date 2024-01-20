@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 USAGE="USAGE: $0 [-i] [-l] [list of names]
 PURPOSE: for each species name (long or short form) given on the command line, output one line with the following info:
 	name-from-command-line	BioGRIDname	list of taxonomic IDs associated with the species
