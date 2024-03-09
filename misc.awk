@@ -376,6 +376,7 @@ function StatHistECDF(name,z,  n,x,prevX,frac,h1,h2,interp,prevSort,m) {
 # FIXME: time is O((n1+n2)^2) since we loop through every value of the histogram, calling ECDF which ALSO does the SAME loop
 # It can be done in time O(n1+n2) if we are a bit more clever.
 function KSstat(name1,name2,   x,maxD,diff,sign) {
+    ASSERT(isarray(_statHist[name1]) && isarray(_statHist[name2]), "KSstat needs stats with histograms");
     maxD=0;
     StatHistMakeCDF(name1);
     StatHistMakeCDF(name2);
@@ -399,6 +400,8 @@ function KSpvalue(ks_stat,n1,n2, C) {
     C=ks_stat/sqrt((n1+n2)/(n1*n2));
     return 2*Exp(-2*C*C);
 }
+
+function KStest(name1, name2) { return KSpvalue(KSstat(name1,name2), _statHistN[name1], _statHistN[name2]); }
 
 function StatQuantile(name,q,   i,which,where,oldWhere,prevSort) {
     ASSERT(_statQuantiles[name], "StatQuantile called on name "name", but _statQuantiles[name] is <"_statQuantiles[name]">");
