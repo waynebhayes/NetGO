@@ -439,7 +439,6 @@ function StatAddSample(name, x) {
 function StatAddWeightedSample(name, x, w) {
     if(1*_statN[name]==0)StatReset(name);
     _statN[name]+=w;
-    _statNunWtd[name]++;
     _statSum[name]+=w*x;
     _statSum2[name]+=w*x*x;
     _statMin[name]=MIN(_statMin[name],x);
