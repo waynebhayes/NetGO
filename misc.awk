@@ -662,7 +662,7 @@ function SpearmanAddSample(name,X,Y) {
     _SpearmanSampleX[name][_SpN]=X;
     _SpearmanSampleY[name][_SpN]=Y;
 }
-function SpearmanCompute(name, i,a) {
+function SpearmanCompute(name, i,a,n) {
     ASSERT(name in _Spearman_N, "SpearmanCompute: no such data "name);
     if(name in _SpComputeResult) return _SpComputeResult[name];
     ASSERT(length(_SpearmanSampleX[name])==length(_SpearmanSampleY[name]), "SpearmanCompute: input arrays are different lengths");
