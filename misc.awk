@@ -662,7 +662,7 @@ function SpearmanAddSample(name,X,Y) {
     _SpearmanSampleX[name][_SpN]=X;
     _SpearmanSampleY[name][_SpN]=Y;
 }
-function SpearmanCompute(name, i) {
+function SpearmanCompute(name, i,a) {
     ASSERT(name in _Spearman_N, "SpearmanCompute: no such data "name);
     if(name in _SpComputeResult) return _SpComputeResult[name];
     ASSERT(length(_SpearmanSampleX[name])==length(_SpearmanSampleY[name]), "SpearmanCompute: input arrays are different lengths");
@@ -673,7 +673,10 @@ function SpearmanCompute(name, i) {
     _SpCommand |& getline _SpComputeResult[name]
     close(_SpCommand,"from");
     n=split(_SpComputeResult[name],a);
-    ASSERT(a[1]==_Spearman_N[name],"SpearmanCompute: first field returned by external command "_SpCommand" is not _Spearman_N["name"]="_Spearman_N[name]);
+    if(a[1]!=_Spearman_N[name]) {
+	Warn("SpearmanCompute: external spearman returned " _SpComputeResult[name]);
+	Warn("SpearmanCompute: but first field is not _Spearman_N["name"]="_Spearman_N[name]);
+    }
     _Spearman_rho[name]=a[2];
     _Spearman_p[name]=a[3];
     _Spearman_t[name]=a[4];
@@ -729,15 +732,21 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     DY=_Pearson_sumY2[name]-_Pearson_sumY[name]*_Pearson_sumY[name]/_Pearson_N[name]
     #print DX,DY >"/dev/stderr"
     denom=sqrt(ABS(DX*DY)); # ABS since sometimes it is very slightly negative due to rounding errors
-    _Pearson_rho[name]=0; if(denom)_Pearson_rho[name]=numer/denom;
-    _Pearson_t[name]=Pearson2T(_Pearson_N[name],_Pearson_rho[name]);
-    if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
+    ASSERT(denom, "PearsonCompute: denom is zero");
+    _Pearson_rho[name]=numer/denom;
     # Fisher R-to-z
-    z=0.5*log((1+_Pearson_rho[name])/(1-_Pearson_rho[name]))
-    zse=1/sqrt(ABS(_Pearson_N[name]-3))
-    _Pearson_p[name]=F=2*MIN(NormalDist(0,zse,z),NormalDist(0,zse,-z))
+    if(_Pearson_rho[name]==1){
+	_Pearson_t[name]=PI*_Pearson_N[name]; # pulled these out of a hat...
+	_Pearson_p[name]=exp(-_Pearson_t[name]);
+    } else {
+	_Pearson_t[name]=Pearson2T(_Pearson_N[name],_Pearson_rho[name]);
+	if(_Pearson_t[name]<0)_Pearson_t[name]=-_Pearson_t[name];
+	z=0.5*log((1+_Pearson_rho[name])/(1-_Pearson_rho[name]))
+	zse=1/sqrt(ABS(_Pearson_N[name]-3))
+	_Pearson_p[name]=F=2*MIN(NormalDist(0,zse,z),NormalDist(0,zse,-z))
+    }
     # We seem to be at least 100x too small according to Fisher
-    if(_Pearson_p[name]>1)_Pearson_p[name]=1-1/_Pearson_p[name]
+    if(1*_Pearson_p[name]>1)_Pearson_p[name]=1-1/_Pearson_p[name]
     _PearsonComputeValid[name]=1;
     return 1
 }
@@ -745,6 +754,7 @@ function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
 function PearsonPrint(name, logp){
     #if(!_Pearson_N[name]) return;
     PearsonCompute(name);
+    #if(_Pearson_rho[name]==1) return sprintf("%d %.4g %.4g %.4f", _Pearson_N[name], _Pearson_rho[name], 0, _Pearson_t[name])
     TINY=1e-200; # using the fancy log algorithm if p-value is smaller than this
     logp = -logPhi(-_Pearson_t[name]); # working with the negative log is easier (so log is positive)
     if(logp < -log(TINY))
