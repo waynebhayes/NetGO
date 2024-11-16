@@ -203,24 +203,6 @@ function logb(b,x){return log(x)/log(b)}
 function dtob(n,   s,sgn) {n=1*n;if(!n)return "0";s=sgn="";if(n<0){sgn="-";n=-n};while(n){s=sprintf("%d%s",(n%2),s); n=int(n/2)}; return sgn s}
 function btod(n) {}
 
-function LSPredict(n, x, y, xIn,      SUMx,SUMy,SUMxy,SUMxx,i,slope,y_intercept,x_intercept) {
-    SUMx=SUMy=SUMxy=SUMxx=0;
-    for(i=0;i<n;i++)
-    {
-	SUMx += x[i];
-	SUMy += y[i];
-	SUMxy += x[i]*y[i];
-	SUMxx += x[i]*x[i];
-    }
-    if(n>0 && (SUMx*SUMx - n*SUMxx) != 0) {
-	slope = ( SUMx*SUMy - n*SUMxy ) / ( SUMx*SUMx - n*SUMxx );
-	y_intercept = ( SUMy - slope*SUMx ) / n;
-	x_intercept = BIGNUM;
-	if(slope != 0) x_intercept = -y_intercept / slope;
-	return slope*xIn + y_intercept;
-    }
-}
-
 # Queue functions: call QueueAlloc(name) to allocate a queue with name "name"; then Add(name) and Next(name) do the obvious.
 function QueueAlloc(name) { _queueFirst[name]=1; _queueLast[name]=0; _queueVals[name][1]=1; delete _queueVals[name][1];}
 function QueueDelloc(name) { delete _queueFirst[name]; delete _queueLast[name]; delete _queueVals[name] }
@@ -806,26 +788,48 @@ function AUPR_FPR(name,  FP, TN){FP=_AUPR_FP[name];TN=_AUPR_TN[name]; return FP/
 # REVISED: RYL (converted to C, 12/11/96)
 # Converted to awk: Wayne Hayes (2020-March-09)
 
-function LeastSquaresReset(x,y) {_LS_SUMx=_LS_SUMy=_LS_SUMxy=_LS_SUMxx=_LS_n=0; delete _LS_x; delete _LS_y}
-function LeastSquaresSample(x,y) {_LS_SUMx+=x; _LS_SUMy+=y; _LS_SUMxy+=x*y;_LS_SUMxx+=x*x; _LS_x[_LS_n]=x; _LS_y[_LS_n]=y; ++_LS_n}
-function LeastSquaresSlope(){_LS_slope=(_LS_SUMx*_LS_SUMy - _LS_n*_LS_SUMxy )/( _LS_SUMx*_LS_SUMx - _LS_n*_LS_SUMxx)
+function LS_Reset() {_LS_valid=_LS_SUMx=_LS_SUMy=_LS_SUMxy=_LS_SUMxx=_LS_n=0; delete _LS_x; delete _LS_y}
+function LS_Sample(x,y) {_LS_valid=0;_LS_SUMx+=x;_LS_SUMy+=y;_LS_SUMxy+=x*y;_LS_SUMxx+=x*x;_LS_x[_LS_n]=x;_LS_y[_LS_n]=y;++_LS_n}
+function LS_Slope(){_LS_slope=(_LS_SUMx*_LS_SUMy - _LS_n*_LS_SUMxy )/( _LS_SUMx*_LS_SUMx - _LS_n*_LS_SUMxx)
     return _LS_slope
 }
-function LeastSquares_y_intercept() { return ( _LS_SUMy - LeastSquaresSlope()*_LS_SUMx ) / _LS_n}
-function LeastSquaresMSR(  i) {
-  SUMres = 0;
-  SUMres2 = 0;
-  slope = LeastSquaresSlope();
-  y_intercept = LeastSquares_y_intercept();
-  for (i=0; i<_LS_n; i++) {
-    y_estimate = slope*_LS_x[i] + y_intercept;
-    res = _LS_y[i] - y_estimate;
-    SUMres += res;
-    SUMres2 += res*res;
-  }
-  return (SUMres2)/_LS_n;
-  variance = (SUMres2 - SUMres*SUMres/_LS_n)/(_LS_n-1);
+function LS_Yintercept() { return ( _LS_SUMy - LS_Slope()*_LS_SUMx ) / _LS_n}
+function LS_Xintercept() { if(LS_Slope()) return -LS_Yintercept() / LS_Slope(); else return BIGNUM;}
+function LS_Predict(x) {
+    if(_LS_n>0 && (_LS_SUMx*_LS_SUMx - _LS_n*_LS_SUMxx) != 0) {
+	return LS_Slope()*x + LS_Yintercept();
+    }
 }
+
+function LS_Compute(   slope,y_intercept,y_estimate,res,i) {
+    if(_LS_n && !_LS_valid) {
+	_LS_SUMres = 0;
+	_LS_SUMres2 = 0;
+	slope = LS_Slope();
+	y_intercept = LS_Yintercept();
+	for (i=0; i<_LS_n; i++) {
+	    y_estimate = slope*_LS_x[i] + y_intercept;
+	    res = _LS_y[i] - y_estimate;
+	    _LS_SUMres += res;
+	    _LS_SUMres2 += res*res;
+	}
+    }
+    return (_LS_valid=_LS_n); # automatically make it invalid if n=0
+}
+
+function LS_R2(  SUMres,SUMres2,slope,y_intercept,y_estimate,res,i) {
+    LS_Compute();
+    return _LS_SUMres2;
+}
+function LS_Variance(  SUMres,SUMres2,slope,y_intercept,y_estimate,res,i) {
+    LS_Compute();
+    return (_LS_SUMres2 - _LS_SUMres*_LS_SUMres/_LS_n)/(_LS_n-1);
+}
+
+function LS_MSR() {
+  return LS_R2()/_LS_n;
+}
+
 
 
 ################# GRAPH ROUTINES ##################
