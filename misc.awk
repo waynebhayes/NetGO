@@ -1,6 +1,6 @@
 BEGIN{PI=M_PI=3.14159265358979324;BIGNUM=1*1e30; for(i=0;i<256;i++)ASCII[sprintf("%c",i)]=i}
 
-function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
+function ASSERT(cond,str){if(!cond){s=sprintf("ASSERTION failure, line %d of input file %s: %s.\nInput line was:\n<%s>\n", FNR,FILENAME,str,$0); print s >"/dev/stderr"; exit 1}}
 function WARN(cond,str,verbose){if(!cond){s=sprintf("WARNING: line %d of input file %s: %s",FNR,FILENAME,str); if(verbose)s=s sprintf("\nInput line was:\n<%s>\n", $0); print s >"/dev/stderr"}}
 function ABS(x){return x<0?-x:x}
 function SIGN(x){return x==0?0:x/ABS(x)}
@@ -127,9 +127,10 @@ function fact2(k)    {if(k<=1)return 1; else return k*fact2(k-2)}
 function logFact2(k) {if(k<=1)return 0; else return log(k)+logFact2(k-2)}
 # see Reza expansion: (n k) = ((n-1) (k-1)) + ((n-1) k)
 function choose(n,k,     r,i) {if(0<=k&&k<=n){r=1;for(i=1;i<=k;i++)r*=(n-(k-i))/i;} else {r=0; Warn("choose: ("n" choose "k") may not make sense; returning 0")}; return r}
-function logChoose(n,k) {
-    if(n<k) return log(0); else ASSERT(0<=k && k <=n,"invalid logChoose("n","k")");
-    return logFact(n)-logFact(k)-logFact(n-k);
+function logChoose(n,k) {if(n in _memLogChoose && k in _memLogChoose[n]) return _memLogChoose[n][k];
+    if(n<k) return log(0); # remove this line if it causes unnecessary failures
+    else ASSERT(0<=k && k <=n,"invalid logChoose("n","k")");
+    return (_memLogChoose[n][k] = logFact(n)-logFact(k)-logFact(n-k));
 }
 function logChooseClever(n,k,     r,i) {
     ASSERT(0<=k&&k<=n,"impossible parameters to logChoose "n" "k)
@@ -231,22 +232,22 @@ function StatHistReset(name) {
 }
 function StatHistAddSample(name, x) {
     if(!(name in _statHistMin)) _statHistMin[name]=1*BIGNUM;
-    if(1*x < _statHistMin[name]) _statHistMin[name]=1*x;
-    ++_statHist[name][1*x];
+    x=1*x;
+    if(x < _statHistMin[name]) _statHistMin[name]=x;
+    ++_statHist[name][x];
     ++_statHistN[name];
 }
 function StatHistMakeCDF(name,    n,x,prevX,PMF,prevSort) {
-    delete _statHistCDF[name];
-    delete _statHistCDFix[name];
+    delete _statHistCDF[name]; delete _statHistCDFix[name];
     prevX=-1*(BIGNUM); # very very negative number
     n=0; _statHistCDFix[name][0] = prevX;
     prevSort=PROCINFO["sorted_in"];
     PROCINFO["sorted_in"]="@ind_num_asc"; # traverse the array in numerical ascending order by index (ie., x)
-    for(x in _statHist[name]) {
-	_statHistCDFix[name][++n] = 1*x;
-	ASSERT(1*x > 1*prevX, "oops, StatHistMakeCDF found non-incrementing x: "prevX" to "x);
-	PMF = _statHist[name][1*x]/(_statHistN[name]);
-	_statHistCDF[name][1*x] = _statHistCDF[name][1*prevX] + PMF;
+    for(x in _statHist[name]) { x=1*x; # ensure it is a number
+	_statHistCDFix[name][++n] = x;
+	ASSERT(x > prevX, "oops, StatHistMakeCDF found non-incrementing x: "prevX" to "x);
+	PMF = _statHist[name][x]/(_statHistN[name]);
+	_statHistCDF[name][x] = _statHistCDF[name][prevX] + PMF;
 	#printf "_statHistCDF[%s][%g]=%g\n", name, x, _statHistCDF[name][x] >"/dev/stderr";
 	prevX = x;
     }
@@ -254,8 +255,7 @@ function StatHistMakeCDF(name,    n,x,prevX,PMF,prevSort) {
     # _statHistCDF[name][prevX] may be above 1 due to numerical error; give it some leeway here.
     ASSERT(_statHistCDF[name][prevX]<1+1e-6/_statHistN[name], "_statHistCDF["name"]["prevX"]-1="_statHistCDF[name][prevX]-1" which is too far above 1");
     _statHistCDF[name][prevX]=1;
-    # remove the -infinity elements created above
-    delete _statHistCDF[name][-1*BIGNUM]; # remove the array element that was created in the first loop above.
+    delete _statHistCDF[name][-1*BIGNUM]; # remove the -infinity elements created above
     delete _statHistCDFix[name][0];
 }
 
@@ -421,6 +421,7 @@ function StatAddSample(name, x) {
 function StatAddWeightedSample(name, x, w) {
     if(1*_statN[name]==0)StatReset(name);
     _statN[name]+=w;
+    _statNunWtd[name]++;
     _statSum[name]+=w*x;
     _statSum2[name]+=w*x*x;
     _statMin[name]=MIN(_statMin[name],x);
@@ -550,7 +551,6 @@ function logBinomialCDF(p,n,k, i,logSum) {
     else      {logSum=logBinomialPMF(1-p,n,n);for(i=1;i<=k;i++) logSum=LogSumLogs(logSum, logBinomialPMF(1-p,n,n-i))}
     return logSum
 }
-function Pearson2T(n,r){if(r==1)return BIGNUM; else return r*sqrt((n-2)/(1-r^2))}
 # The Poisson1_CDF is 1-CDF, and sums terms smallest to largest; near CDF=1 (ie., 1-CDF=0) it is accurate well below eps_mach.
 function PoissonCDF(l,k, sum, term, i){sum=term=1;for(i=1;i<=k;i++){term*=l/i;sum+=term}; return sum*Exp(-l)}
 function PoissonPMF(l,k, r,i){if(l>723)return NormalDist(l,sqrt(l),k);r=Exp(-l);for(i=k;i>0;i--)r*=l/i;return r} 
@@ -655,6 +655,7 @@ function SpearmanCompute(name, i,a,n) {
     _SpCommand |& getline _SpComputeResult[name]
     close(_SpCommand,"from");
     n=split(_SpComputeResult[name],a);
+    #ASSERT(a[1]==_Spearman_N[name],"SpearmanCompute: first field returned by external command "_SpCommand" is not _Spearman_N["name"]="_Spearman_N[name]);
     if(a[1]!=_Spearman_N[name]) {
 	Warn("SpearmanCompute: external spearman returned " _SpComputeResult[name]);
 	Warn("SpearmanCompute: but first field is not _Spearman_N["name"]="_Spearman_N[name]);
@@ -674,10 +675,10 @@ function CovarReset(name) {
     delete _Covar_N[name]
 }
 function CovarAddSample(name,X,Y) {
-    _Covar_N[name]++;
     _Covar_sumX[name]+=X
     _Covar_sumY[name]+=Y
     _Covar_sumXY[name]+=X*Y
+    _Covar_N[name]++;
 }
 
 function CovarCompute(name){
@@ -705,6 +706,8 @@ function PearsonAddSample(name,X,Y) {
     _Pearson_sumY2[name]+=Y*Y
     _Pearson_N[name]++;
 }
+
+function Pearson2T(n,r){if(r==1)return BIGNUM; else return r*sqrt((n-2)/(1-r^2))}
 
 function PearsonCompute(name,     numer,DX,DY,denom,z,zse,F){
     if(!_Pearson_N[name])return 0;
@@ -740,12 +743,12 @@ function PearsonPrint(name, logp){
     TINY=1e-200; # using the fancy log algorithm if p-value is smaller than this
     logp = -logPhi(-_Pearson_t[name]); # working with the negative log is easier (so log is positive)
     if(logp < -log(TINY))
-	return sprintf("%d %.4g %.4g %.4f", _Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
+	return sprintf("%d\t%.4g\t%.4g\t%.4f", _Pearson_N[name], _Pearson_rho[name], _Pearson_p[name], _Pearson_t[name])
     else {
 	#printf "t %g p %g log10p %g logp %g", _Pearson_t[name], _Pearson_p[name], logp/log(10), logp > "/dev/stderr"
 	logp = (logp - 8.28931 - logp/65.1442)/0.992 # Empirical correction to get in line with Fisher for small p-values
 	#printf " (logp corrected %g %g)\n", logp/log(10), logp > "/dev/stderr"
-	return sprintf("%d %.4g %s %.4f", _Pearson_N[name], _Pearson_rho[name], logPrint(-logp,4), _Pearson_t[name]);
+	return sprintf("%d\t%.4g\t%s\t%.4f (using log)",_Pearson_N[name],_Pearson_rho[name],logPrint(-logp,4),_Pearson_t[name]);
 	#p=10^-logp; print "log-over-Fisher", p/F # Sanity check
     }
 }
@@ -831,7 +834,6 @@ function LS_MSR() {
 }
 
 
-
 ################# GRAPH ROUTINES ##################
 
 #Input: edgeList; a single node, u, to start the BFS; and an (optional) "searchNode" to stop at.
@@ -868,6 +870,7 @@ function InducedEdges(edge,T,D,       u,v,m) { # note you can skip passing in D
     ASSERT(m%2==0, "m is not even");
     return m/2;
 }
+
 function InducedWeightedEdges(edge,T,D,       u,v,m,all1) { # note you can skip passing in D
     MakeEmptySet(D); all1=1;
     for(u in T) for(v in T) if((u in edge) && (v in edge[u])) {
@@ -885,7 +888,7 @@ function InducedWeightedEdges(edge,T,D,       u,v,m,all1) { # note you can skip 
 # This implementation allows multiple elements with the same priority... and even multiple [p][element] duplicates
 function PQpush(name, pri, element) { ++_PQ_[name][pri][element]; _PQ_size[name]++ }
 
-function PQpop(name,    prevSort, element, p) {
+function PQpop(name,    prevSort,element,p) {
     prevSort=PROCINFO["sorted_in"]; # remember sort order to restore it afterwards
     PROCINFO["sorted_in"]="@ind_num_desc";
     for(p in _PQ_[name]) {
@@ -909,4 +912,4 @@ function PQalloc(name) { _PQ_size[name]=0;PQ_[name][0][0]=1; delete PQ_[name][0]
 function PQdelloc(name) { delete PQ_size[name]; delete PQ_[name] }
 function PQfree(name) { PQdelloc(name); }
 
-{ASSERT(!gsub("",""), "Sorry, we cannot accept DOS text files. Please remove the carriage returns from the file.");}
+{ASSERT(!gsub("",""), "Sorry, we cannot accept DOS text files. Please remove the carriage returns from file "FILENAME);}
