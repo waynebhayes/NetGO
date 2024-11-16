@@ -1,1 +1,1 @@
-../libwayne/misc.awk
+../libwayne/bin/misc.awk
