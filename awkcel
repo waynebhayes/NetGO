@@ -96,14 +96,12 @@ fi
     cat $EXEDIR/misc.awk; echo '
     BEGINFILE{delete colName; delete varCol;'"`cat $TMPDIR/BEGINFILE`"'}
     /^#/{next} # only remove comments in the TSV if they start at the beginning of the line
-    /^$/{next}
+    /^$/{next} # blank lines are allowed
     /^[^#]/{_awkcelStarted[ARGIND]=1}
-    # never mind, do not remove comments because sometimes a hash is on the line and it is too hard to figure out
-    # {gsub("#.*","")} # do not remove comments (see above)
     NF!=NumCols[ARGIND]&&'$QUIET'==0{
 	Warn(sprintf("awkcel: expected %d columns at %s:%d but found %d", NumCols[ARGIND], FILENAME, FNR, NF));
     }
-    /^#/&&'$QUIET'==0{Warn(sprintf("awkcel: comment (#) character not honored on line %d of %s", FNR, FILENAME))}
+    /#/&&'$QUIET'==0{Warn(sprintf("awkcel: comment (#) character not honored on line %d of %s", FNR, FILENAME))}
     !_awkcelStarted[ARGIND]{next}
     {'"`cat $TMPDIR/ASSIGN`"'}'
     cat $TMPDIR/userPROG
