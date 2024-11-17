@@ -1,12 +1,1 @@
-#!/bin/sh
-VERBOSE=0
-case "$1" in
--[vV]*) VERBOSE=1; shift ;;
-esac
-
-hawk '{PearsonAddSample("", $1, $2)}
-    END{
-    if('$VERBOSE')printf "%s\t%s\t\t%s\t%s\n", "n", "rho", "p", "t"
-    if(NR==0){print "0\t0\t\t1\t0"; exit}
-    print PearsonPrint("");
-    }' "$@"
+../libwayne/bin/pearson
