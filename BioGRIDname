@@ -25,19 +25,21 @@ while true; do
     esac
 done
 
+cd $SANA_DIR/resnik/taxons
+eval set "$@"  # turn wildcards in quotes like '??' to the actual names in the taxons directory
+
 for q
 do
     if echo "$q" | grep -q '^[0-9]*$'; then # it's an integer already, don't touch it
 	echo "$q	NONE	$q"
     else
 	(
-	    cd $SANA_DIR/resnik/taxons
 	    if $LONG; then
 		Q=`echo "$q" | awk '{printf "%s[a-z]*_%s\n", substr($0,1,1), tolower(substr($0,2,1))}'`
-		FILE=`ls | grep $IGNORE_CASE "$Q"` # HS -> Homo_sapiens, full BioGRID name
+		FILE=`ls | grep -x $IGNORE_CASE "$Q"` # HS -> Homo_sapiens, full BioGRID name
 	    else
 		Q=`echo "$q" | sed 's/[ 	.]//g' | sed 's/IID//'`
-		FILE=`ls | grep $IGNORE_CASE "$Q"` # HS -> HSapiens, my traditional midsize name
+		FILE=`ls | grep -x $IGNORE_CASE "$Q"` # HS -> HSapiens, my traditional midsize name
 	    fi
 	    #if [ `echo $FILE | wc -w` -gt 1 ]; then echo "Warning: $q" matches multiple files: $FILE >&2; fi
 	    for f in $FILE; do
