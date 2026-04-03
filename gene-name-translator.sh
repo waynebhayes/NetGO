@@ -1,10 +1,10 @@
 #!/bin/sh
-DATABASE_DIR=/home/wayne/extra1/preserve/BioGRID/raw/4.4.209/IDENTIFIERS.tab
+ID_DIR=/home/wayne/extra2/preserve/BioGRID/raw/4.4.209/IDENTIFIERS.tab
 USAGE="PURPOSE: translate between the (bloody annoying) gazillions of naming schemes for genes and proteins,
 by leveraging BiGRID's database of these names.
 
-Do an 'ls' on $DATABASE_DIR for the entire list of species; some examples are
-	`cd $DATABASE_DIR && ls Hom* Sac* Rat* Mus_* D*_mel* A*_th* S*_pombe | fmt -120`
+Do an 'ls' on $ID_DIR for the entire list of species; some examples are
+	`cd $ID_DIR && ls Hom* Sac* Rat* Mus_* D*_mel* A*_th* S*_pombe | fmt -120`
 
 Commonly used types include: ENTREZ_GENE    OFFICIAL_SYMBOL    SWISS-PROT    SYSTEMATIC_NAME    UNIPROT-ACCESSION.
 
@@ -21,10 +21,10 @@ die() { echo "$USAGE">&2; echo "FATAL ERROR:$@" >&2; exit 1
 case "$1" in
 -ID) SPECIES_FILE="$2"; shift 2;;
 *)
-    [ -d $DATABASE_DIR ] || die "set DATABASE_DIR in $0"
+    [ -d $ID_DIR ] || die "set ID_DIR in $0"
 
     InputFile=""
-    SPECIES_FILE=`ls $DATABASE_DIR/* | grep -i "$1"`
+    SPECIES_FILE=`ls $ID_DIR/* | grep -i "$1"`
     [ `echo "$SPECIES_FILE" | wc -l` -eq 1 ] || die "$SPECIES_FILE:
     expecting only one species file, but found the above files. Make your species regexp more strict."
     ;;
